@@ -1,51 +1,38 @@
+import sqlite3
 import socket
-
-DEFAULT_PORT = 1256
-PORT_FILE = "port.info"
-# This is a comment i  want to see if changes somethuing
-def get_port_from_file() -> int:
-    try:
-        with open(PORT_FILE, "r") as file:
-            return int(file.read().strip())
-    except FileNotFoundError:
-        print(f"File {PORT_FILE} not found, using default port")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}, using default port")
-
-    return DEFAULT_PORT
+from port import read_port_from_file
+from Server import Server
+from database import Database
+HOST = 'localhost'
 
 
 
+def test_database():
+    db = Database()
+
+    # Example usage: Insert a new client
+    client_id = b'someuniqueid123457'  # Example 16-byte unique ID as a bytes object
+    client_name = 'user2'  # ASCII string representing the username
+    client_public_key = b'somepublickey1234567890'  # Example public key as a bytes object
+    client_last_seen = '2024-10-07 12:00:00'  # Example datetime string
+    client_aes_key = b'someaeskey12345678901234567890'  # Example AES key as a bytes object
+
+    db.insert_into_clients(client_id, client_name, client_public_key, client_last_seen, client_aes_key)
+
+    # Retrieve and print all clients
+    db.get_clients()
+
+    # Close the database connection when done
+    db.close_connection()
 
 
-def start_server():
-    print("trying to run")
-    port = get_port_from_file()
-
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('localhost', port))
-    server_socket.listen(1)
-    print(f"Server listening on port {port}")
-
-    connection, client_address = server_socket.accept()
-    with connection:
-        print(f"Connected to {client_address}")
-        while True:
-            data = connection.recv(1024)
-            if not data:
-                break
-            print(f"Received data: {data.decode('utf-8')}")
-            # Send a message back to the client
-            connection.sendall(b"Message received!")
-
-    # Close the server socket after the loop
-    server_socket.close()
-
-
-
-
+def main():
+    server = Server(HOST, read_port_from_file())
+    server.run()
 
 if __name__ == '__main__':
-    start_server()
+    main()
+    #test_database()
+
 
 
