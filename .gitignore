@@ -1,14 +1,18 @@
 # Ignore everything by default
 * 
-# Allow specific file types
-# Inside server folder:
 
+# Allow specific file types
+# Inside Server folder:
 !Server/*.py
 !Server/*.db
 !Server/*.info
 
-# Inside client folder:
-
+# Inside Client folder:
 !Client/*.cpp
 !Client/*.info
-Client/*.h
+!Client/*.h
+
+# Ignore IDE-specific files
+.idea/
+*.iml
+*.xml
