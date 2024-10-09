@@ -3,8 +3,8 @@ import socket
 from port import read_port_from_file
 from Server import Server
 from database import Database
+from typing import List
 HOST = 'localhost'
-
 
 
 def test_database():
@@ -30,9 +30,7 @@ def main():
     server = Server(HOST, read_port_from_file())
     server.run()
 
+
 if __name__ == '__main__':
-    main()
-    #test_database()
-
-
-
+     main()
+    # test_database()

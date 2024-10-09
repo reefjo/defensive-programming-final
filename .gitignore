@@ -1,0 +1,14 @@
+# Ignore everything by default
+* 
+# Allow specific file types
+# Inside server folder:
+
+!Server/*.py
+!Server/*.db
+!Server/*.info
+
+# Inside client folder:
+
+!Client/*.cpp
+!Client/*.info
+Client/*.h
