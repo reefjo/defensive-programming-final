@@ -2,6 +2,9 @@ import socket
 import database
 import selectors
 
+from Server.file_handler import FileHandler
+
+
 class Server:
     def __init__(self, host: str, port: int) -> None:
         self.host = host
@@ -17,6 +20,10 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
+        fh = FileHandler(connection)
+        print("Created a file handler")
+        fh.receive_file("receive_here_server.txt")
+
         data = connection.recv(1024)
         if data:
             print(f"Received data: {data.decode('utf-8')}")

@@ -1,7 +1,7 @@
 import sqlite3
 import socket
 from port import read_port_from_file
-from Server import Server
+from server import Server
 from database import Database
 from typing import List
 HOST = 'localhost'
