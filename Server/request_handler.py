@@ -1,10 +1,23 @@
 import socket
 BUFFER_SIZE = 1024
 
-class FileHandler:
+class RequestHandler:
     def __init__(self, conn):
         self.conn = conn
+    def receive_request(self):
+        client_id = self.conn.recv(16)
+        client_version = self.conn.recv(1)
+        code = self.conn.recv(2)
+        # First, receive the first 4 bytes (file size)
+        payload_size = self.conn.recv(4)
+        if code == 828:
+            self.receive_file("receive_here_server.txt")
+
     def receive_file(self, file_name):
+        # Receive the client id ( 16 bytes)
+        client_id = self.conn.recv(16)
+        client_version = self.conn.recv(1)
+        code = self.conn.recv(2)
         # First, receive the first 4 bytes (file size)
         file_size_bytes = self.conn.recv(4)
         if len(file_size_bytes) < 4:

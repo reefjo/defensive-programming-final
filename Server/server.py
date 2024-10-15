@@ -2,7 +2,7 @@ import socket
 import database
 import selectors
 
-from Server.file_handler import FileHandler
+from request_handler import RequestHandler
 
 
 class Server:
@@ -20,9 +20,10 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
-        fh = FileHandler(connection)
+        rh = RequestHandler(connection)
         print("Created a file handler")
-        fh.receive_file("receive_here_server.txt")
+        rh.handle_request("sample_request")
+        rh.receive_file("receive_here_server.txt")
 
         data = connection.recv(1024)
         if data:

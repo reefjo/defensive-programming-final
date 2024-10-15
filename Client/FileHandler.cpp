@@ -5,35 +5,37 @@
 
 #define BUFFER_SIZE 1024
 
+// Initialize the global variable for endianness
+const bool isBigEndian = is_machine_big_endian();
 
-// Function to convert a size to little-endian format
-void convertSizeToLittleEndian(uint32_t size, char* buffer) {
-	// Ensure the size is padded to 4 bytes
-	buffer[0] = static_cast<char>(size & 0xFF);            // Least significant byte
-	buffer[1] = static_cast<char>((size >> 8) & 0xFF);
-	buffer[2] = static_cast<char>((size >> 16) & 0xFF);
-	buffer[3] = static_cast<char>((size >> 24) & 0xFF);   // Most significant byte
+
+
+int convert_to_little(int num) {
+	if (isBigEndian == true)
+		return ((num & 0xFF000000) >> 24) | // Move byte 3 to byte 0
+			((num & 0x00FF0000) >> 8) | // Move byte 2 to byte 1
+			((num & 0x0000FF00) << 8) | // Move byte 1 to byte 2
+			((num & 0x000000FF) << 24);  // Move byte 0 to byte 3
+	return num;
 }
 
-// Function to check endianness and convert the size if necessary
-void prepareSizeForTransmission(uint32_t size, char* buffer) {
-	// Check system endianness
-	uint32_t test = 1;
-	if (*reinterpret_cast<char*>(&test) != 1) { // If not little-endian
-		// Convert size to little-endian
-		convertSizeToLittleEndian(size, buffer);
-	}
-	else {
-		// If already little-endian, just copy it directly (padding to little-endian)
-		convertSizeToLittleEndian(size, buffer);
-	}
-}
 
+
+int is_machine_big_endian() {
+	// Returns 1 if big endian, 0 otherwise
+	int test = 1;
+	int* ptr = &test;
+	int res = *(char*)ptr;
+	if (res == 1)
+		return 0;  // little endian
+	return 1;
+
+}
 
 
 
 // Function to read server IP, port, client name, and file path from info.transfer file
-std::tuple<std::string, std::string, std::string, std::string> FileHandler::readTransferFile() {
+std::tuple<std::string, std::string, std::string, std::string> read_transfer_file() {
 	std::string filename = TRANSFER_FILE_NAME;
 	std::ifstream transfer_file(filename);
 	if (!transfer_file) {
@@ -57,6 +59,7 @@ std::string get_file_from_connection() {
 }
 // Function to send file to server using Boost Asio
 void FileHandler::sendFile(const std::string& fileName, boost::asio::ip::tcp::socket& socket) {
+	
 	std::ifstream file(fileName, std::ios::binary);
 	if (!file) {
 		std::cerr << "Error opening file: " << fileName << std::endl;
@@ -70,7 +73,10 @@ void FileHandler::sendFile(const std::string& fileName, boost::asio::ip::tcp::so
 
 	// Prepare buffer for size in little-endian format
 	char sizeBuffer[4];
-	prepareSizeForTransmission(static_cast<uint32_t>(fileSize), sizeBuffer); // Convert to little-endian
+	// Prepare size as 4 bytes (uint32_t)
+	uint32_t fileSizeLE = convert_to_little(static_cast<uint32_t>(fileSize));
+	memcpy(sizeBuffer, &fileSizeLE, sizeof(fileSizeLE)); // Pack the size into 4 bytes
+
 
 	// Send the file size as the first 4 bytes in little-endian format
 	boost::asio::write(socket, boost::asio::buffer(sizeBuffer, sizeof(sizeBuffer)));
@@ -84,9 +90,6 @@ void FileHandler::sendFile(const std::string& fileName, boost::asio::ip::tcp::so
 		boost::asio::write(socket, boost::asio::buffer(buffer, file.gcount()));
 	}
 
-	// Send an EOF indicator to signal end of file transfer
-	//const std::string endMsg = "EOF";
-	//boost::asio::write(socket, boost::asio::buffer(endMsg));
 
 	file.close();
 	std::cout << "File sent successfully!" << std::endl;
