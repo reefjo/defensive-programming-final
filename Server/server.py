@@ -20,12 +20,12 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
-        rh = RequestHandler(connection)
-        print("Created a file handler")
-        rh.handle_request("sample_request")
-        rh.receive_file("receive_here_server.txt")
+        rh = RequestHandler(connection, self.database)
+        print("Created a request handler")
+        rh.handle_request()
+        #rh.receive_file("receive_here_server.txt")
 
-        data = connection.recv(1024)
+        '''data = connection.recv(1024)
         if data:
             print(f"Received data: {data.decode('utf-8')}")
             # Send a message back to the client
@@ -34,7 +34,7 @@ class Server:
             # Close the connection if no data is received
             print("Closing connection")
             self.selector.unregister(connection)
-            connection.close()
+            connection.close()'''
 
 
     def run(self):

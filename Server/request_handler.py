@@ -1,38 +1,54 @@
 import socket
-BUFFER_SIZE = 1024
+from request import Request
+from protocol_constants import (
+    REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
+    REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE
+)
+from database import Database
+from response import Response
+import uuid
+
 
 class RequestHandler:
-    def __init__(self, conn):
+    def __init__(self, conn, db: Database):
         self.conn = conn
-    def receive_request(self):
-        client_id = self.conn.recv(16)
-        client_version = self.conn.recv(1)
-        code = self.conn.recv(2)
-        # First, receive the first 4 bytes (file size)
-        payload_size = self.conn.recv(4)
-        if code == 828:
-            self.receive_file("receive_here_server.txt")
+        self.db = db
+        self.request = Request()
+        self.response = Response()
 
-    def receive_file(self, file_name):
-        # Receive the client id ( 16 bytes)
-        client_id = self.conn.recv(16)
-        client_version = self.conn.recv(1)
-        code = self.conn.recv(2)
-        # First, receive the first 4 bytes (file size)
-        file_size_bytes = self.conn.recv(4)
-        if len(file_size_bytes) < 4:
-            print("Failed to receive file size.")
+    def handle_request(self):
+        try:
+            print("Request received from client")
+            self.request.parse_from_socket(self.conn)
+        except Exception as e:
+            print(f"Error parsing request: {e}")
             return
+        if self.request.code == REGISTER_CODE:
+            self.handle_register_request(self.request)
+        elif self.request.code == SEND_FILE_CODE:
+            self.receive_file("receive_here_server.txt")
+        # send the response
+        #self.response.send_response(self.conn)
 
-        # Convert the file size bytes to an integer (little-endian)
-        file_size = int.from_bytes(file_size_bytes, 'little')
-        print(f"File size: {file_size} bytes")
+    def handle_register_request(self, request: Request) -> None:
+        print("Starting the handle register request function")
+        client_name = self.conn.recv(CLIENT_NAME_SIZE)
+        print(f"trying to register with {client_name = }")
 
+        if self.db.contains_name(client_name):
+            print(f"Database already contains this {client_name = }.")
+            self.response.code = REGISTER_FAILED_CODE
+        else:
+            client_id_bytes = uuid.uuid4().bytes
+            self.response.payload = client_id_bytes
+            self.response.code = REGISTER_SUCCESS_CODE
+
+    def receive_file(self, file_name: str, request):
         received = 0
 
         with open(file_name, 'wb') as f:
-            while received < file_size:
-                next_chunk_size = min(BUFFER_SIZE, file_size - received)
+            while received < request.payload_size:
+                next_chunk_size = min(BUFFER_SIZE, request.payload_size - received)
                 print(f"next chunk size: {next_chunk_size}")
                 data = self.conn.recv(next_chunk_size)
                 print(f"We received data of size:{len(data)}.\n the data is: {data}")

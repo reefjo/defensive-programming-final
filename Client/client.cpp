@@ -62,6 +62,11 @@ Client::Client(std::tuple<std::string, std::string, std::string, std::string> t)
 
 
 }
+void Client::start() {
+// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
+	this->requests_handler.send_register_request();
+
+}
 
 
 

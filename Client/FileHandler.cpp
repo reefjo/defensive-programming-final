@@ -6,31 +6,12 @@
 #define BUFFER_SIZE 1024
 
 // Initialize the global variable for endianness
-const bool isBigEndian = is_machine_big_endian();
 
 
 
-int convert_to_little(int num) {
-	if (isBigEndian == true)
-		return ((num & 0xFF000000) >> 24) | // Move byte 3 to byte 0
-			((num & 0x00FF0000) >> 8) | // Move byte 2 to byte 1
-			((num & 0x0000FF00) << 8) | // Move byte 1 to byte 2
-			((num & 0x000000FF) << 24);  // Move byte 0 to byte 3
-	return num;
-}
 
 
 
-int is_machine_big_endian() {
-	// Returns 1 if big endian, 0 otherwise
-	int test = 1;
-	int* ptr = &test;
-	int res = *(char*)ptr;
-	if (res == 1)
-		return 0;  // little endian
-	return 1;
-
-}
 
 
 
@@ -53,6 +34,7 @@ std::tuple<std::string, std::string, std::string, std::string> read_transfer_fil
 
 	return { server_ip, server_port, client_name, file_path };
 }
+/*
 std::string get_file_from_connection() {
 	return "";
 
@@ -120,6 +102,6 @@ void FileHandler::receiveFile(const std::string& fileName, boost::asio::ip::tcp:
 	std::cout << "File received successfully!" << std::endl;
 }
 
-
+*/
 
 

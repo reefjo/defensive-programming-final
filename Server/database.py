@@ -1,4 +1,5 @@
 import sqlite3
+
 DATABASE_NAME = "db.defensive"
 CREATE_CLIENTS_QUERY = '''
         CREATE TABLE IF NOT EXISTS clients (
@@ -20,6 +21,7 @@ CREATE_FILES_QUERY = '''
 GET_CLIENTS_QUERY = '''
         select * from clients
 '''
+
 
 class Database:
     def __init__(self):
@@ -43,7 +45,7 @@ class Database:
             print(row)
         print("ended printing all rows from clients")
 
-    def insert_into_clients(self, id, name, public_key, last_seen, aes_key):
+    def insert_into_clients(self, id, name, public_key, last_seen, aes_key) -> None:
         print("Trying to insert into clients...")
         cursor = self.conn.cursor()
         try:
@@ -58,23 +60,28 @@ class Database:
         finally:
             cursor.close()  # Ensure the cursor is closed
 
+    def contains_name(self, name: str) -> bool:
+        cursor = self.conn.cursor()
+        try:
+            # Check if the client name exists in the clients table
+            cursor.execute('''
+                SELECT 1 FROM clients WHERE name = ?
+            ''', (name,))
+
+            # Fetch one result
+            result = cursor.fetchone()
+
+            # If a result is found, return True, otherwise False
+            if result:
+                return True
+            else:
+                return False
+        except sqlite3.Error as e:
+            print(f"Error occurred while checking for client name: {e}")
+            return False
+        finally:
+            cursor.close()
+
     def close_connection(self):
         # Close the database connection
         self.conn.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

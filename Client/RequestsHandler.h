@@ -2,10 +2,8 @@
 #define REQUESTS_HANDLER_H
 #include <boost/asio.hpp>
 #include <iostream>
-#define CLIENT_NAME_SIZE 255
-#define CLIENT_ID_SIZE 16
+
 #define TRANSFER_FILE_NAME "transfer.info"
-#define REIGSTER_REQUEST_CODE 825
 // This class contains the boost::asio and everything
 class RequestsHandler {
 private:
@@ -17,6 +15,10 @@ private:
 	uint8_t client_version;
 	bool is_valid_ip(std::string ip);
 	bool is_valid_port(std::string port);
+
+	void load_code(std::vector<uint8_t>& arr, uint16_t code);
+	void load_payload_size(std::vector<uint8_t>& arr, uint32_t size);
+
 
 
 public:
