@@ -4,7 +4,7 @@
 #include "Payload.h"
 class Packet {
 private:
-	Header h;
+	Header* h;  // Polymorphic header(can be either RequestHeader or ResponseHeader)
 	Payload p;
 };
 

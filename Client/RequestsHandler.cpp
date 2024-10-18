@@ -53,7 +53,6 @@ void RequestsHandler::receive_register_response() {
 
 
 }
-void RequestHandler::get_basic_header_info
 
 void RequestsHandler::load_code(std::vector<uint8_t>& arr, uint16_t code) {
 	uint16_t code_little_endian = Endianness::to_little_endian(code);
