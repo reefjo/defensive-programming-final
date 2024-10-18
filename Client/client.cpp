@@ -57,14 +57,33 @@ Client::Client(std::tuple<std::string, std::string, std::string, std::string> t)
 	: client_name(std::get<2>(t)),
 	file_path(std::get<3>(t)),
 	requests_handler(client_name, CLIENT_VERSION){
+	check_if_registered();
 	// Now the client is fully initialized, including requests_handler
 	std::cout << "Client initialized , along with requests handler." << std::endl;
+	if (this->registered)
+		std::cout << "Client is already registered." << std::endl;
+
+
+}
+void Client::check_if_registered() {
+	// try to open me.info file, if this exists, then this->registed = true, and load keys
 
 
 }
 void Client::start() {
 // send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
-	this->requests_handler.send_register_request();
+	if (!this->registered) {
+		this->requests_handler.send_register_request();
+		this->requests_handler.receive_register_response();
+		this->requests_handler.send_key();
+		this->requests_handler.receive_key();
+	}
+	else {
+		this->requests_handler.send_login_request();
+		this->requests_handler.receive_login_response();
+
+	}
+	this->requests_handler.send_encrypted_file();
 
 }
 

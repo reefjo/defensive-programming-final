@@ -28,7 +28,8 @@ class RequestHandler:
         elif self.request.code == SEND_FILE_CODE:
             self.receive_file("receive_here_server.txt")
         # send the response
-        #self.response.send_response(self.conn)
+        print(f"After parsing request, trying to send response")
+        self.response.send_response(self.conn)
 
     def handle_register_request(self, request: Request) -> None:
         print("Starting the handle register request function")
@@ -40,6 +41,7 @@ class RequestHandler:
             self.response.code = REGISTER_FAILED_CODE
         else:
             client_id_bytes = uuid.uuid4().bytes
+            print(f"Created client id: {client_id_bytes}")
             self.response.payload = client_id_bytes
             self.response.code = REGISTER_SUCCESS_CODE
 

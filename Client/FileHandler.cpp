@@ -34,6 +34,9 @@ std::tuple<std::string, std::string, std::string, std::string> read_transfer_fil
 
 	return { server_ip, server_port, client_name, file_path };
 }
+
+
+
 /*
 std::string get_file_from_connection() {
 	return "";

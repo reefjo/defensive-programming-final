@@ -24,6 +24,7 @@ private:
 public:
 	RequestsHandler(std::string, uint8_t);
 	void send_register_request();
+	void receive_register_response();
 	void load_id_version(std::vector < uint8_t> &);
 };
 

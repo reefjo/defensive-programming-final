@@ -10,9 +10,11 @@ class Response:
         self.payload = b""
 
     def send_response(self, conn) -> None:
+        print(f"Trying to send response:")
         try:
             response_message = self._construct_response_message()
             conn.sendall(response_message)
+            print(f"Response sent to client\npayload: {self.payload}")
         except socket.error as e:
             print(f"Error sending response: {e}")
         except Exception as e:

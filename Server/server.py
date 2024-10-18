@@ -22,7 +22,12 @@ class Server:
     def handle_client(self, connection):
         rh = RequestHandler(connection, self.database)
         print("Created a request handler")
-        rh.handle_request()
+        try:
+            rh.handle_request()
+        finally:
+            self.selector.unregister(connection)
+
+            connection.close()
         #rh.receive_file("receive_here_server.txt")
 
         '''data = connection.recv(1024)

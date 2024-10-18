@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
 		client.start();
 	}
 	catch (std::exception& e) {
-		std::cerr << "Exception: " << e.what() << std::endl;
+		std::cerr << "Exception caught at main: " << e.what() << std::endl;
 	}
 	return 0;
 

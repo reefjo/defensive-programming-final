@@ -2,8 +2,8 @@
 #define CLIENT_H
 #include <string>
 #include <iostream>
-#include "RequestsHandler.h" // Assuming you have a RequestsHandler class
-#include <optional> // Include for std::optional
+#include "RequestsHandler.h" 
+#include <optional> //  for std::optional, if i will choose to use it (delete this line if not!)
 
 const uint8_t CLIENT_VERSION = 3;
 
@@ -21,6 +21,7 @@ private:
 
 	//void read_transfer_and_connect();
 	void authenticate();
+	void check_if_registered();
 public:
 	Client(); // Constructor
 	void start(); // Method to start the client

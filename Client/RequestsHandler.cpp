@@ -23,7 +23,7 @@ RequestsHandler::RequestsHandler(std::string client_name, uint8_t client_version
 }
 
 bool RequestsHandler::is_valid_ip(std::string ip) {
-	return true; // update this function later
+	return true; // update this function laterd
 
 }
 bool RequestsHandler::is_valid_port(std::string port) {
@@ -31,10 +31,12 @@ bool RequestsHandler::is_valid_port(std::string port) {
 }
 
 void RequestsHandler::send_register_request() {
+
+	
 	std::vector<uint8_t> arr;
 	load_id_version(arr);
 	// load the register code
-	load_code(arr, REGISTER_CODE);
+	load_code(arr, REGISTER_REQUEST_CODE);
 	load_payload_size(arr, REGISTER_REQUEST_SIZE);
 	// Load the client name (char by char)
 	for (char c : client_name) {
@@ -44,6 +46,14 @@ void RequestsHandler::send_register_request() {
 	boost::asio::write(this->socket, boost::asio::buffer(arr, arr.size()));
 
 }
+void RequestsHandler::receive_register_response() {
+	// fill up the response parts : version, code, payload size.
+	auto [version, code, payload_size] = get_basic_header_info();
+
+
+
+}
+void RequestHandler::get_basic_header_info
 
 void RequestsHandler::load_code(std::vector<uint8_t>& arr, uint16_t code) {
 	uint16_t code_little_endian = Endianness::to_little_endian(code);
@@ -64,7 +74,10 @@ void RequestsHandler::load_id_version(std::vector < uint8_t> &arr) {
 
 	// load the client id
 	for (int i = 0; i < ID_SIZE; i++) {
-			arr.push_back(this->client_id.at(i));;
+		if (i < this->client_id.length())
+			arr.push_back(this->client_id.at(i));
+		else
+			arr.push_back(1); // dummy
 	}
 	// load the version
 	arr.push_back(this->client_version);
