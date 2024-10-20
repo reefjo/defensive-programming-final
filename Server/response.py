@@ -1,4 +1,4 @@
-from protocol_constants import SERVER_VERSION, CLIENT_VERSION_SIZE, CODE_SIZE, PAYLOAD_SIZE
+from protocol_constants import SERVER_VERSION, CODE_SIZE, PAYLOAD_SIZE, SERVER_VERSION_SIZE
 
 import socket
 
@@ -22,7 +22,8 @@ class Response:
 
     def _construct_response_message(self):
         payload_size = len(self.payload)
-        response_header = self.version.to_bytes(CLIENT_VERSION_SIZE, 'little')
+        response_header = self.version.to_bytes(SERVER_VERSION_SIZE, 'little')
         response_header += self.code.to_bytes(CODE_SIZE, 'little')
         response_header += payload_size.to_bytes(PAYLOAD_SIZE, 'little')
+        print(f"constructing: {response_header = }")
         return response_header + self.payload

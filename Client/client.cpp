@@ -49,17 +49,22 @@ void test_sending() {
 
 // Public constructor: handles file reading and then delegates to the private constructor
 Client::Client()
-	: Client(read_transfer_file()) {}  // Delegates to private constructor
+	: Client(read_transfer_file(), DEFAULT_ID) {}  // Delegates to private constructor
 
 // Private constructor: fully initializes the requests_handler after reading the file
 
-Client::Client(std::tuple<std::string, std::string, std::string, std::string> t)
+Client::Client(std::tuple<std::string, std::string, std::string, std::string> t, std::string client_id )
 	: client_name(std::get<2>(t)),
 	file_path(std::get<3>(t)),
-	requests_handler(client_name, CLIENT_VERSION){
+	client_id(client_id),
+	requests_handler(client_id, client_name, CLIENT_VERSION) {
 	check_if_registered();
-	// Now the client is fully initialized, including requests_handler
+
+	// Initialize client_name to a size of 255
+	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
 	std::cout << "Client initialized , along with requests handler." << std::endl;
+	std::cout << "Client name:" << client_name << ", length: " << this->client_name.length() << 
+		"file path:" << file_path << " registered: " <<registered << std::endl;
 	if (this->registered)
 		std::cout << "Client is already registered." << std::endl;
 
@@ -75,15 +80,15 @@ void Client::start() {
 	if (!this->registered) {
 		this->requests_handler.send_register_request();
 		this->requests_handler.receive_register_response();
-		this->requests_handler.send_key();
-		this->requests_handler.receive_key();
+		//this->requests_handler.send_key();
+		//this->requests_handler.receive_key();
 	}
 	else {
-		this->requests_handler.send_login_request();
-		this->requests_handler.receive_login_response();
+		//this->requests_handler.send_login_request();
+		//this->requests_handler.receive_login_response();
 
 	}
-	this->requests_handler.send_encrypted_file();
+	//this->requests_handler.send_encrypted_file();
 
 }
 

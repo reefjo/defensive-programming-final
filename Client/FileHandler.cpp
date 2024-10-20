@@ -35,7 +35,9 @@ std::tuple<std::string, std::string, std::string, std::string> read_transfer_fil
 	return { server_ip, server_port, client_name, file_path };
 }
 
+void FileHandler::write_me_info(const std::string client_id, const std::string client_name) {
 
+}
 
 /*
 std::string get_file_from_connection() {

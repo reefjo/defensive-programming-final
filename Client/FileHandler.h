@@ -19,6 +19,8 @@ public:
     // Function to receive file from server using Boost Asio
     void receiveFile(const std::string& fileName, boost::asio::ip::tcp::socket& socket);
 
+    void write_me_info(const std::string, const std::string);
+
 };
 
 std::tuple<std::string, std::string, std::string, std::string> read_transfer_file();

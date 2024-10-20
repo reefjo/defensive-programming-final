@@ -2,9 +2,11 @@
 #include "FileHandler.h"
 #include "Protocol.h"
 #include "Endianness.h"
-RequestsHandler::RequestsHandler(std::string client_name, uint8_t client_version)
-	: resolver(io_context), socket(io_context), client_name(client_name), client_version(client_version) {
 
+
+RequestsHandler::RequestsHandler(std::string client_id, std::string client_name, uint8_t client_version)
+	: client_id(client_id), resolver(io_context), socket(io_context), client_name(client_name), client_version(client_version) {
+	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
 	auto [server_ip, server_port, _, file_path] = read_transfer_file();
 	if (!is_valid_ip(server_ip)) {
 		throw std::runtime_error("\nnot a valid IP address from transfer.info file\n");
@@ -15,10 +17,7 @@ RequestsHandler::RequestsHandler(std::string client_name, uint8_t client_version
 
 	std::cout << "Connected successfully to IP: " << server_ip << ", Port: " << server_port << std::endl;
 
-	// Initialize client_name to a size of 255
-	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
 	std::cout << "Client name for the request_Handler: " << this->client_name << "Length: " << this->client_name.length() << std::endl;
-
 
 }
 
@@ -32,55 +31,57 @@ bool RequestsHandler::is_valid_port(std::string port) {
 
 void RequestsHandler::send_register_request() {
 
-	
-	std::vector<uint8_t> arr;
-	load_id_version(arr);
-	// load the register code
-	load_code(arr, REGISTER_REQUEST_CODE);
-	load_payload_size(arr, REGISTER_REQUEST_SIZE);
-	// Load the client name (char by char)
-	for (char c : client_name) {
-		arr.push_back(static_cast<uint8_t>(c));  // Convert each char to uint8_t and push
-	}
+	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(this->client_name);
+	//RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
+	std::unique_ptr<Header> header = std::make_unique<RequestHeader>
+		(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	Packet packet(std::move(header), std::move(payload));
 
-	boost::asio::write(this->socket, boost::asio::buffer(arr, arr.size()));
+	std::vector<uint8_t> serialized_data = packet.serialize();
+
+	std::cout << "Serialized Packet (hex): ";
+	for (uint8_t byte : serialized_data) {
+		printf("%02X ", byte);  // Print each byte in hex format
+	}
+	std::cout << std::endl;
+
+	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
+	std::cout << "Serialized data sent to server!\n";
 
 }
 void RequestsHandler::receive_register_response() {
 	// fill up the response parts : version, code, payload size.
-	auto [version, code, payload_size] = get_basic_header_info();
+	std::vector<uint8_t> response_buffer(SERVER_RESPONSE_HEADER_SIZE);
+	boost::asio::read(this->socket, boost::asio::buffer(response_buffer, response_buffer.size()));
 
+	// Extract server version (1 byte), response code (2 bytes), and payload size (4 bytes)
 
+	uint8_t server_version = response_buffer[0];
 
-}
+	uint16_t response_code = response_buffer[1] | response_buffer[2] << 8;
 
-void RequestsHandler::load_code(std::vector<uint8_t>& arr, uint16_t code) {
-	uint16_t code_little_endian = Endianness::to_little_endian(code);
+	uint32_t payload_size = response_buffer[3] | response_buffer[4] << 8 
+		| response_buffer[5] << 16 | response_buffer[6] << 24;
 
-	// Push back each byte independently
-	arr.push_back(static_cast<uint8_t>(code_little_endian & 0xFF));      // Lower byte
-	arr.push_back(static_cast<uint8_t>((code_little_endian >> 8) & 0xFF)); // Upper byte
-}
-void RequestsHandler::load_payload_size(std::vector<uint8_t>& arr, uint32_t size) {
-	uint32_t size_little_endian = Endianness::to_little_endian(size);
-	arr.push_back(static_cast<uint8_t>(size_little_endian & 0xFF));          // Byte 0
-	arr.push_back(static_cast<uint8_t>((size_little_endian >> 8) & 0xFF));   // Byte 1
-	arr.push_back(static_cast<uint8_t>((size_little_endian >> 16) & 0xFF));  // Byte 2
-	arr.push_back(static_cast<uint8_t>((size_little_endian >> 24) & 0xFF));  // Byte 3
-}
-void RequestsHandler::load_id_version(std::vector < uint8_t> &arr) {
-	// load the client id (if exists. and if not - load with junk) up to 16 bytes
+	// The sizes are in little endian, convert to native
+	response_code = Endianness::from_little_to_native(response_code);
+	payload_size = Endianness::from_little_to_native(payload_size);
 
-	// load the client id
-	for (int i = 0; i < ID_SIZE; i++) {
-		if (i < this->client_id.length())
-			arr.push_back(this->client_id.at(i));
-		else
-			arr.push_back(1); // dummy
+	std::cout << "Received server version: " << static_cast<int>(server_version) << ", Response code: " << response_code
+		<< " Payload size: " << payload_size << std::endl;
+	if (response_code == REGISTER_FAIL_CODE) {
+		throw std::runtime_error("\nRegistration failed. program will exit i guess \n");
 	}
-	// load the version
-	arr.push_back(this->client_version);
 
-	
+	std::vector<uint8_t> buf(payload_size);
+	boost::asio::read(this->socket, boost::asio::buffer(buf, payload_size));
+	this->client_id = std::string(buf.begin(), buf.end());
+	std::cout << "Received client id: " << client_id << std::endl;
+
+	// Create a .me file with this info
+
+	outdata.open("fruits.txt", std::ios::app);
+
 
 }
+
