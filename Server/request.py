@@ -10,15 +10,19 @@ class Request:
         self.payload_size = 0
 
     def parse_from_socket(self, conn) -> None:
-        try:
-            self.client_id = conn.recv(CLIENT_ID_SIZE)
-            self.client_version = int.from_bytes(conn.recv(CLIENT_VERSION_SIZE), 'little')
-            self.code = int.from_bytes(conn.recv(CODE_SIZE), 'little')
-            self.payload_size = int.from_bytes(conn.recv(PAYLOAD_SIZE), 'little')
-            print(
-                f"parsed from client: {self.client_id = }, {self.client_version = }, {self.code = }, {self.payload_size = }")
+        
+        self.client_id = conn.recv(CLIENT_ID_SIZE)
+        if not self.client_id:
+            raise ConnectionError("Client disconnected while receiving client version.")
+        self.client_version = int.from_bytes(conn.recv(CLIENT_VERSION_SIZE), 'little')
+        if not self.client_version:
+            raise ConnectionError("Client disconnected while receiving client version.")
+        self.code = int.from_bytes(conn.recv(CODE_SIZE), 'little')
+        if not self.code:
+            raise ConnectionError("Client disconnected while receiving client version.")
+        self.payload_size = int.from_bytes(conn.recv(PAYLOAD_SIZE), 'little')
+        if not self.payload_size:
+            raise ConnectionError("Client disconnected while receiving client version.")
+        print(
+            f"parsed from client: {self.client_id = }, {self.client_version = }, {self.code = }, {self.payload_size = }")
 
-        except socket.error as e:
-            print(f"Socket error: {e}")
-        except Exception as e:
-            print(f"General error during parsing: {e}")

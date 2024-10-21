@@ -8,10 +8,10 @@
 
 class Packet {
 private:
-    std::unique_ptr<Header> h;   // Smart pointer to Header (RequestHeader/ResponseHeader)
+    RequestHeader h;  
     std::unique_ptr<Payload> p;  // Smart pointer to Payload (RegistrationPayload, FilePayload, etc.)
 public:
-    Packet(std::unique_ptr<Header>, std::unique_ptr<Payload>);
+    Packet(RequestHeader, std::unique_ptr<Payload>);
     std::vector<uint8_t> serialize() const;
 };
 

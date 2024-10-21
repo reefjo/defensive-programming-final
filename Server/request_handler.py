@@ -17,12 +17,9 @@ class RequestHandler:
         self.response = Response()
 
     def handle_request(self):
-        try:
-            print("Request received from client")
-            self.request.parse_from_socket(self.conn)
-        except Exception as e:
-            print(f"Error parsing request: {e}")
-            return
+        print("Request received from client")
+        self.request.parse_from_socket(self.conn)
+
         if self.request.code == REGISTER_CODE:
             self.handle_register_request(self.request)
         elif self.request.code == SEND_FILE_CODE:
@@ -34,9 +31,11 @@ class RequestHandler:
     def handle_register_request(self, request: Request) -> None:
         print("Starting the handle register request function")
         client_name = self.conn.recv(CLIENT_NAME_SIZE)
+        if not client_name:
+            raise Exception
         print(f"trying to register with {client_name = }")
 
-        if self.db.contains_name(client_name):
+        if not self.db.contains_name(client_name):
             print(f"Database already contains this {client_name = }.")
             self.response.code = REGISTER_FAILED_CODE
         else:

@@ -32,6 +32,11 @@ std::vector<uint8_t> RequestHeader::serialize() const {
 
 	return res;
 
-
-
 }
+
+uint8_t ResponseHeader::get_server_version() const { return this->server_version; }
+uint16_t ResponseHeader::get_response_code() const { return this->response_code; }
+uint32_t ResponseHeader::get_payload_size() const { return this->payload_size; }
+
+ResponseHeader::ResponseHeader(uint8_t version, uint16_t code, uint32_t size)
+	:server_version(version), response_code(code), payload_size(size){}

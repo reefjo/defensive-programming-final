@@ -78,8 +78,9 @@ void Client::check_if_registered() {
 void Client::start() {
 // send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 	if (!this->registered) {
-		this->requests_handler.send_register_request();
-		this->requests_handler.receive_register_response();
+		this->requests_handler.handle_registration();
+		//this->requests_handler.send_register_request();
+		//this->requests_handler.receive_register_response();
 		//this->requests_handler.send_key();
 		//this->requests_handler.receive_key();
 	}

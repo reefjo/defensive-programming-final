@@ -6,7 +6,6 @@
 #include "Endianness.h"
 class Header {
 public:
-	virtual std::vector<uint8_t> serialize() const = 0; // why const = 0?
 	virtual ~Header() = default;
 };
 
@@ -28,7 +27,7 @@ public:
 	uint16_t get_request_code() const;
 	uint32_t get_payload_size() const;
 	
-	std::vector<uint8_t> serialize() const override;  // Serialize to byte array
+	std::vector<uint8_t> serialize() const;  // Serialize to byte array
 
 
 };
@@ -37,7 +36,7 @@ public:
 class ResponseHeader : public Header {
 private:
 	uint8_t server_version;
-	uint16_t code;
+	uint16_t response_code;
 	uint32_t payload_size;
 
 public:
@@ -48,8 +47,6 @@ public:
 	uint8_t get_server_version() const;
 	uint16_t get_response_code() const;
 	uint32_t get_payload_size() const;
-
-	std::vector<uint8_t> serialize() const override;
 
 };
 

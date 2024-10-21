@@ -9,6 +9,7 @@ constexpr uint8_t CLIENT_NAME_SIZE = 255;
 constexpr uint16_t REGISTER_REQUEST_CODE = 825;
 constexpr uint8_t REGISTER_REQUEST_SIZE = 255;
 constexpr const char DEFAULT_ID[] = "aaaaaaaaaaaaaaaa";
+constexpr uint8_t NUM_OF_TRIALS = 3;
 
 
 // Responses

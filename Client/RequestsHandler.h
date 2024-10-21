@@ -2,7 +2,7 @@
 #define REQUESTS_HANDLER_H
 #include <boost/asio.hpp>
 #include <iostream>
-#include "Packet.h"
+#include "RequestPacket.h"
 #define TRANSFER_FILE_NAME "transfer.info"
 // This class contains the boost::asio and everything
 class RequestsHandler {
@@ -18,14 +18,15 @@ private:
 
 	void load_code(std::vector<uint8_t>& arr, uint16_t code);
 	void load_payload_size(std::vector<uint8_t>& arr, uint32_t size);
+	ResponseHeader unpack_response_header();
+	void send_register_request();
+	bool handle_register_response();
 
 
 
 public:
 	RequestsHandler(std::string, std::string, uint8_t);
-	void send_register_request();
-	void receive_register_response();
-	void load_id_version(std::vector < uint8_t> &);
+	void handle_registration();
 };
 
 

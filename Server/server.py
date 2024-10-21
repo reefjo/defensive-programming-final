@@ -24,22 +24,10 @@ class Server:
         print("Created a request handler")
         try:
             rh.handle_request()
-        finally:
+        except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
+            print("A client closed the connection.")
             self.selector.unregister(connection)
-
             connection.close()
-        #rh.receive_file("receive_here_server.txt")
-
-        '''data = connection.recv(1024)
-        if data:
-            print(f"Received data: {data.decode('utf-8')}")
-            # Send a message back to the client
-            connection.sendall(b"Message received!")
-        else:
-            # Close the connection if no data is received
-            print("Closing connection")
-            self.selector.unregister(connection)
-            connection.close()'''
 
 
     def run(self):

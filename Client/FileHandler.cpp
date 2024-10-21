@@ -2,6 +2,7 @@
 #include <fstream>   // For std::ifstream, std::ofstream
 #include <iostream>  // For std::cerr
 #include <stdexcept> // For std::runtime_error
+#include <iomanip> // for std::hex and std::setw
 
 #define BUFFER_SIZE 1024
 
@@ -35,7 +36,28 @@ std::tuple<std::string, std::string, std::string, std::string> read_transfer_fil
 	return { server_ip, server_port, client_name, file_path };
 }
 
-void FileHandler::write_me_info(const std::string client_id, const std::string client_name) {
+void write_me_info(const std::string client_name, const std::string client_id) {
+	std::ofstream me_info_file("me.info");
+	if (!me_info_file) {
+		throw std::runtime_error("Failed to open me.info file for writing");
+	}
+
+	// Write client name to the first line
+	me_info_file << client_name << std::endl;
+
+	// Convert client_id to its ASCII hex representation (2 hex characters per byte)
+	std::stringstream hex_representation;
+	for (unsigned char c : client_id) {
+		hex_representation << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(c);
+	}
+	// Write the ASCII hex representation of the client ID to the second line
+	me_info_file << hex_representation.str() << std::endl;
+	std::cout << "Succesfully wrote the me.info file\n";
+
+	me_info_file.close();
+
+
+
 
 }
 
@@ -46,7 +68,7 @@ std::string get_file_from_connection() {
 }
 // Function to send file to server using Boost Asio
 void FileHandler::sendFile(const std::string& fileName, boost::asio::ip::tcp::socket& socket) {
-	
+
 	std::ifstream file(fileName, std::ios::binary);
 	if (!file) {
 		std::cerr << "Error opening file: " << fileName << std::endl;
