@@ -4,6 +4,8 @@
 #include <string>
 #include <tuple>
 #include <boost/asio.hpp>
+#include <optional>
+
 #define TRANSFER_FILE_NAME "transfer.info"
 
 
@@ -20,8 +22,7 @@ void receiveFile(const std::string& fileName, boost::asio::ip::tcp::socket& sock
 
 void write_me_info(const std::string, const std::string);
 
-
-
+std::vector<std::string > read_key_from_file();
 std::tuple<std::string, std::string, std::string, std::string> read_transfer_file();
 
 

@@ -4,9 +4,9 @@
 #include "Endianness.h"
 
 
-RequestsHandler::RequestsHandler(std::string client_id, std::string client_name, uint8_t client_version)
-	: client_id(client_id), resolver(io_context), socket(io_context), client_name(client_name), client_version(client_version) {
-	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
+RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cversion)
+	: client_id(cid), resolver(io_context), socket(io_context), client_name(cname), client_version(cversion) {
+	//this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
 	auto [server_ip, server_port, _, file_path] = read_transfer_file();
 	if (!is_valid_ip(server_ip)) {
 		throw std::runtime_error("\nnot a valid IP address from transfer.info file\n");
@@ -18,6 +18,7 @@ RequestsHandler::RequestsHandler(std::string client_id, std::string client_name,
 	std::cout << "Connected successfully to IP: " << server_ip << ", Port: " << server_port << std::endl;
 
 	std::cout << "Client name for the request_Handler: " << this->client_name << "Length: " << this->client_name.length() << std::endl;
+	std::cout << "Client id for request_handler: " << this->client_id << std::endl;
 
 }
 
@@ -28,7 +29,9 @@ bool RequestsHandler::is_valid_ip(std::string ip) {
 bool RequestsHandler::is_valid_port(std::string port) {
 	return true;  // update this function later
 }
+
 void RequestsHandler::handle_registration() {
+	std::cout << "Client id start of handle_registration: " << client_id << std::endl;
 	for (uint8_t i = 0; i < NUM_OF_TRIALS; i++) {
 		send_register_request();
 		if (handle_register_response()) // Server responded with success and created a me.info file
@@ -37,6 +40,7 @@ void RequestsHandler::handle_registration() {
 	std::string err = "Failed to register for " + std::to_string(NUM_OF_TRIALS) + " times\n";
 	throw std::runtime_error(err);
 }
+
 void RequestsHandler::send_register_request() {
 
 	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(this->client_name);

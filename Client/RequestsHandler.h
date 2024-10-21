@@ -4,6 +4,7 @@
 #include <iostream>
 #include "RequestPacket.h"
 #define TRANSFER_FILE_NAME "transfer.info"
+
 // This class contains the boost::asio and everything
 class RequestsHandler {
 private:

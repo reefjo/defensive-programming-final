@@ -20,10 +20,10 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
-        rh = RequestHandler(connection, self.database)
+        request_handler = RequestHandler(connection, self.database)
         print("Created a request handler")
         try:
-            rh.handle_request()
+            request_handler.handle_request()
         except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
             print("A client closed the connection.")
             self.selector.unregister(connection)

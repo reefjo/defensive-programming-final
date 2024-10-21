@@ -56,11 +56,40 @@ void write_me_info(const std::string client_name, const std::string client_id) {
 
 	me_info_file.close();
 
+}
+std::vector<std::string> read_key_from_file() {
+	std::vector<std::string> res;
+	std::string filename = "me.info";
+	std::ifstream info_file(filename);
+	if (!info_file) {
+		return res;  // result with 0 elements means no such file exists
+	}
+	std::string cname, id, key;
+	std::getline(info_file, cname);
+	std::getline(info_file, id);
+	std::getline(info_file, key);
+	std::cout << " Inside read_key_from_file, length of client name is: " << cname.length() << std::endl;
 
 
+	
+	// load the key into this client
+	res.push_back(cname);
+	res.push_back(id);
+	if (key.empty()) {
+		std::cout << "Client not exchanged keys yet\n";
+		return res;
+	}
+	res.push_back(key);
+	std::stringstream hex_representation;  // for debugging purposes . delete later.
+	for (unsigned char c : res[1]) {
+		hex_representation << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(c);
+	}
+	std::cout << "read_key_from_file returned vector with: \nclient name = " << res[0]
+		<< ", id = " << hex_representation.str() << ", key = " << res[2] << std::endl;
+	info_file.close();
+	return res;
 
 }
-
 /*
 std::string get_file_from_connection() {
 	return "";
