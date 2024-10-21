@@ -6,7 +6,7 @@
 
 RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cversion)
 	: client_id(cid), resolver(io_context), socket(io_context), client_name(cname), client_version(cversion) {
-	//this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
+	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters
 	auto [server_ip, server_port, _, file_path] = read_transfer_file();
 	if (!is_valid_ip(server_ip)) {
 		throw std::runtime_error("\nnot a valid IP address from transfer.info file\n");

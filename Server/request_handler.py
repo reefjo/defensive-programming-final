@@ -67,7 +67,7 @@ class RequestHandler:
             raise ConnectionError("Client didn't send his name.")
         print(f"trying to register with {client_name = }")
 
-        if not self.db.contains_name(client_name):
+        if self.db.contains_name(client_name):
             print(f"Database already contains this {client_name = }.")
             self.response.code = REGISTER_FAILED_CODE
         else:
