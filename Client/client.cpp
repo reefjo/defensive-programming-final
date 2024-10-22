@@ -67,7 +67,7 @@ Client::Client(std::tuple<std::string, std::string, std::string, std::string> t,
 	// Initialize client_name to a size of 255
 	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters (regardless if registered)
 
-	check_if_registered();
+	//check_if_registered();
 
 	std::cout << "Client initialized , along with requests handler." << std::endl;
 	std::cout << "Client name for client:" << client_name << ", length: " << this->client_name.length() << 
@@ -99,27 +99,32 @@ void Client::check_if_registered() {
 
 
 }
+
+std::string Client::generate_keys() {
+	RSAPrivateWrapper rsa_private;
+	this->private_rsa_key = rsa_private.getPrivateKey();  // Store private key for later use
+	return rsa_private.getPublicKey();  // Return public key for sending to server
+}
+
 void Client::start() {
 // send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 
 	if (!this->registered) {
 		this->requests_handler.handle_registration();
-		// this->requests_handler.send_key();
+		std::string public_key = this->generate_keys();
+		std::string base64key = Base64Wrapper::encode(this->private_rsa_key);
+		put_key_in_files(base64key);
+		this->requests_handler.send_public_key(public_key);
 	}
 	
 	else {
 		std::cout << "Client alredy registered . (msg from client start). proceeding to login.\n";
 		//this->requests_handler.handle_login();
 	}
-	if (not sent_public_key) {  // if info.me file doesn't contain a key in third line
-		this->requests_handler.send_public_key();
-	}
-	//this->requests_handler.receive
-	/*
-	if (this->aes_key.empty())  // not exchanged keys yet
-		this->requests_handler.exchange_keys();
-	this->requests_handler.send_encrypted_file();
-	*/
+	
+	this->aes_key = this->requests_handler.get_encrypted_aes(this->private_rsa_key);
+	//this->requests_handler.send_file();
+
 
 }
 

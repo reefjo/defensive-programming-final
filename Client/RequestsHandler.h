@@ -35,7 +35,8 @@ private:
 public:
 	RequestsHandler(std::string, std::string, uint8_t);
 	void handle_registration();
-	void send_public_key();
+	void send_public_key(const std::string);
+	std::string get_encrypted_aes(const std::string);
 
 };
 

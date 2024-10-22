@@ -70,8 +70,7 @@ void put_key_in_files(std::string key) {
 }
 std::vector<std::string> read_key_from_file() {
 	std::vector<std::string> res;
-	std::string filename = "me.info";
-	std::ifstream info_file(filename);
+	std::ifstream info_file(ME_INFO_FILE_NAME);
 	if (!info_file) {
 		return res;  // result with 0 elements means no such file exists
 	}

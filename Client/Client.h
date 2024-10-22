@@ -13,6 +13,7 @@ private:
 	std::string client_name;
 	std::string client_id;
 	std::string aes_key;
+	std::string private_rsa_key;
 	std::string file_path;
 	RequestsHandler requests_handler;
 	bool registered;
@@ -24,6 +25,7 @@ private:
 	//void read_transfer_and_connect();
 	void authenticate();
 	void check_if_registered();
+	std::string generate_keys();
 public:
 	Client(); // Constructor
 	void start(); // Method to start the client

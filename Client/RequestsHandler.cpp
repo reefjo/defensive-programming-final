@@ -29,13 +29,38 @@ bool RequestsHandler::is_valid_port(std::string port) {
 	return true;  // update this function later
 }
 
-void RequestsHandler::send_public_key() {
-	// generate private + public key , keep the private key in priv.info
-	RSAPrivateWrapper priv;
-	std::string private_key = priv.getPrivateKey();
-	std::string public_key = priv.getPublicKey();
+std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key) {
+	ResponseHeader header = unpack_response_header();
+	if (not (header.get_response_code() == RECEIVED_KEY_SUCCESS_CODE or header.get_response_code() == LOGIN_SUCCESS_CODE))
+		throw std::runtime_error("Server failed to send encrypted key back. not good\n");
+
+	// Error returned encrypted aes key
+	std::cout << "Server sent key success code. now trying to get the encrypted key\n";
+	std::vector<uint8_t> buf(header.get_payload_size());
+	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
+	std::string client_id  = std::string(buf.begin(), buf.begin() + ID_SIZE);
+	std::string encrypted_key = std::string(buf.begin() + ID_SIZE, buf.end());
+	std::cout << "Encrypted key received: " << encrypted_key << std::endl;
+
+
+		// Decrypt the AES key using the client's private RSA key
+	RSAPrivateWrapper rsa_private(private_rsa_key);
+	std::string decrypted_aes_key = rsa_private.decrypt(encrypted_key);
+
+	std::cout << "Decrypted AES key: " << decrypted_aes_key << std::endl;
+
+	return decrypted_aes_key;  // Return the decrypted AES key
+
+
+	
+
+}
+
+void RequestsHandler::send_public_key(const std::string public_key) {
+	// sends the public key given by the client
+
 	RSAPublicWrapper pub(public_key);
-	put_key_in_files(public_key);
+
 	std::unique_ptr<Payload> payload = std::make_unique<SendKeyPayload>(this->client_name, public_key);
 
 	RequestHeader header = RequestHeader(this->client_id, this->client_version, SEND_KEY_REQUEST_CODE, payload->serialize().size());

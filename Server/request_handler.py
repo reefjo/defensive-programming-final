@@ -50,6 +50,13 @@ class RequestHandler:
         print(f"Client public key received: {public_key}")
         print("Thank you for sending me the key! storing it ...(notreally)")
 
+
+        self.response.code = RECEIVED_KEY_SUCCESS_CODE
+        self.load_encrypted_key_and_id(public_key)
+        print("Encrypted key sent to client.")
+
+    def load_encrypted_key_and_id(self, public_key):  # useful for server responses: 1602 and 1605
+
         # import the public key
         rsa_key = RSA.import_key(public_key)
 
@@ -59,11 +66,13 @@ class RequestHandler:
         # Encrypt the AES key with the client's public key
         cipher_rsa = PKCS1_OAEP.new(rsa_key)
         encrypted_aes_key = cipher_rsa.encrypt(aes_key)
+        print(f"{encrypted_aes_key = }")
 
         # Dynamically pack
         client_id = self.request_header.client_id
         self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
-        self.response.code = RECEIVED_KEY_SUCCESS_CODE
+
+
 
     def handle_send_file_request(self):
         # Payload : client name (255 bytes), fetch it
