@@ -123,7 +123,7 @@ void Client::start() {
 	}
 	
 	this->aes_key = this->requests_handler.get_encrypted_aes(this->private_rsa_key);
-	//this->requests_handler.send_file();
+	this->requests_handler.send_file(TEST_FILE_NAME, this->aes_key);
 
 
 }

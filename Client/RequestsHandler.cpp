@@ -28,7 +28,73 @@ bool RequestsHandler::is_valid_ip(std::string ip) {
 bool RequestsHandler::is_valid_port(std::string port) {
 	return true;  // update this function later
 }
+void RequestsHandler::send_file(std::string file_name,  const std::string aes_key) {
+	std::ifstream file(file_name, std::ios::binary);
+	if (!file) {
+		std::cerr << "Error opening file: " << file_name << std::endl;
+		return;
+	}
 
+	// Get the file size
+	file.seekg(0, std::ios::end);
+	uint32_t orig_file_size = file.tellg();
+	file.seekg(0, std::ios::beg);
+	std::cout << "Original file size: " << orig_file_size << std::endl;
+	// 1. fetch the data inside that file
+		// 1. Fetch the data inside that file
+	std::vector<char> file_data(orig_file_size);
+	file.read(file_data.data(), orig_file_size);
+
+	// Close the file after reading
+	file.close();
+
+	// Extend file name to 255 bytes
+	file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
+
+
+
+
+	// 2. encrypt the data in that file
+	AESWrapper aes(reinterpret_cast<const unsigned char*>(aes_key.c_str()), AESWrapper::DEFAULT_KEYLENGTH);
+	std::string encrypted_data = aes.encrypt(file_data.data(), file_data.size());
+	std::cout << "Encrypted data from file: " << encrypted_data << std::endl;
+
+
+
+	// 3. get the encrypted file size
+	uint32_t encrypted_data_size = encrypted_data.size();
+	std::cout << "Encrypted file size : " << encrypted_data_size << std::endl;
+	// 4. create a SendFilePayload  payload
+	uint16_t current_packet = 0;
+	const uint16_t total_packets = (encrypted_data_size + BUFFER_SIZE - 1) / BUFFER_SIZE;
+	// 5. create a header and packet,
+	for (uint16_t packet_num = 0; packet_num < total_packets; ++packet_num) {
+		// Calculate the offset and the size of the current chunk
+		uint32_t offset = packet_num * BUFFER_SIZE;
+		uint32_t chunk_size = std::min(static_cast<uint32_t>(BUFFER_SIZE), encrypted_data_size - offset);
+
+		// Extract the chunk from the encrypted data
+		std::string chunk_data = encrypted_data.substr(offset, chunk_size);
+
+		// 5. Create a SendFilePayload payload for the current chunk
+		std::unique_ptr<Payload> payload = std::make_unique<SendFilePayload>
+			(encrypted_data_size, orig_file_size, packet_num, total_packets,file_name, chunk_data);
+
+
+		RequestHeader header = RequestHeader(this->client_id, this->client_version, SEND_FILE_REQUEST_CODE, payload->serialize().size());
+		(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+		Packet packet(header, std::move(payload));
+
+		std::vector<uint8_t> serialized_data = packet.serialize();
+
+
+		// 7. Send the packet over the network
+		boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
+		std::cout << "Serialized  encrypted file data sent to server!\n";
+	}
+
+
+}
 std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key) {
 	ResponseHeader header = unpack_response_header();
 	if (not (header.get_response_code() == RECEIVED_KEY_SUCCESS_CODE or header.get_response_code() == LOGIN_SUCCESS_CODE))

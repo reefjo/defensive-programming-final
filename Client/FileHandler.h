@@ -3,6 +3,7 @@
 
 #include <string>
 #include <tuple>
+#include <fstream>   // For std::ifstream, std::ofstream
 #include <boost/asio.hpp>
 #include <optional>
 #include "Protocol.h"

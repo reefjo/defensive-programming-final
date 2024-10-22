@@ -6,13 +6,17 @@
 
 constexpr uint8_t ID_SIZE = 16;
 constexpr uint8_t CLIENT_NAME_SIZE = 255;
+constexpr uint8_t FILE_NAME_SIZE = 255;
 constexpr uint16_t REGISTER_REQUEST_CODE = 825;
 constexpr uint16_t SEND_KEY_REQUEST_CODE = 826;
+constexpr uint16_t SEND_FILE_REQUEST_CODE = 828;
 constexpr uint8_t REGISTER_REQUEST_SIZE = 255;
 constexpr const char DEFAULT_ID[] = "aaaaaaaaaaaaaaaa";
 constexpr uint8_t NUM_OF_TRIALS = 3;
 constexpr const char PRIVATE_KEY_FILE_NAME[] = "priv.key";
 constexpr const char ME_INFO_FILE_NAME[] = "me.info";
+constexpr const char TEST_FILE_NAME[] = "send_this.txt";
+constexpr const uint16_t BUFFER_SIZE = 1024;
 
 
 

@@ -1,15 +1,18 @@
 import socket
 import struct
 import Crypto
-from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP, AES
 from Crypto.Random import get_random_bytes
 from Crypto.PublicKey import RSA
+from Crypto.Util import Padding
+from Crypto.Util.Padding import unpad
 
 from request import RequestHeader
 from protocol_constants import (
     REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
-    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE
+    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_STRUCTURE,
+    FILE_PAYLOAD_SIZE_WITHOUT_DATA
 )
 from database import Database
 from response import Response
@@ -32,7 +35,7 @@ class RequestHandler:
         if self.request_header.code == REGISTER_CODE:
             self.handle_register_request()
         elif self.request_header.code == SEND_FILE_CODE:
-            self.receive_file("receive_here_server.txt")
+            self.handle_send_file_request()
         elif self.request_header.code == SEND_KEY_CODE:
             self.handle_send_key_request()
         else:
@@ -41,6 +44,7 @@ class RequestHandler:
         # send the response
         print(f"After parsing request, trying to send response")
         self.response.send_response(self.conn)
+
     def handle_send_key_request(self):
         # Receives the public key of the client and saves it, then saves the encrypted key back
         data = self.conn.recv(self.request_header.payload_size)
@@ -50,10 +54,12 @@ class RequestHandler:
         print(f"Client public key received: {public_key}")
         print("Thank you for sending me the key! storing it ...(notreally)")
 
+        self.id_to_key[self.request_header.client_id] = public_key
+
 
         self.response.code = RECEIVED_KEY_SUCCESS_CODE
         self.load_encrypted_key_and_id(public_key)
-        print("Encrypted key sent to client.")
+        print("Encrypted key sent to client, and stored id->aes_key.")
 
     def load_encrypted_key_and_id(self, public_key):  # useful for server responses: 1602 and 1605
 
@@ -62,6 +68,9 @@ class RequestHandler:
 
         # Generate AES key
         aes_key = get_random_bytes(AES_KEY_SIZE)
+
+        # Assign the key to this id
+        self.id_to_key[self.request_header.client_id] = aes_key
 
         # Encrypt the AES key with the client's public key
         cipher_rsa = PKCS1_OAEP.new(rsa_key)
@@ -72,27 +81,39 @@ class RequestHandler:
         client_id = self.request_header.client_id
         self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
 
-
-
     def handle_send_file_request(self):
-        # Payload : client name (255 bytes), fetch it
+        if self.request_header.client_id not in self.id_to_key:
+            raise Exception("Client has not registered, client id not found")
+        aes_key = self.id_to_key[self.request_header.client_id]
+
         data = self.conn.recv(self.request_header.payload_size)
-        # send file request is more complex , do it later
-        client_name, public_key = struct.unpack(SEND_KEY_REQUEST_STRUCTURE, data)
+        file_data_len = self.request_header.payload_size - FILE_PAYLOAD_SIZE_WITHOUT_DATA
+        structure_with_data = SEND_FILE_REQUEST_STRUCTURE + f"{file_data_len}s"
 
-        # import the public key
-        rsa_key = RSA.import_key(public_key)
+        content_size, orig_file_size, packet_number, total_packets, file_name, encrypted_data = struct.unpack(
+            structure_with_data, data)
+        print(f"Received {content_size = }, {orig_file_size = }, {packet_number = }")
+        print(f"{total_packets = }, {file_name = },\n {encrypted_data = }")
+        print("Thank you for sending the file! trying to store it")
+        print(f"The encrypted data length: {len(encrypted_data)}, should be {content_size}")
 
-        # Generate AES key
-        aes_key = get_random_bytes(AES_KEY_SIZE)
+        file_name = file_name.rstrip(b'\x00').decode('utf-8')
 
-        # Encrypt the AES key with the client's public key
-        cipher_rsa = PKCS1_OAEP.new(rsa_key)
-        encrypted_aes_key = cipher_rsa.encrypt(aes_key)
+        # Use zero IV to match C++ implementation
+        iv = bytes(16)  # Create a zero IV
+        cipher = AES.new(aes_key, AES.MODE_CBC, iv=iv)
 
-        # Dynamically
-        client_id = self.request_header.client_id
-        self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
+        # Decrypt the data
+        decrypted_data = Padding.unpad(cipher.decrypt(encrypted_data), AES.block_size)
+        # Remove padding - use the original file size as reference
+
+        # Write decrypted data to file
+        with open(file_name, 'wb') as f:
+            f.write(decrypted_data)
+
+        print(f"Successfully decrypted and wrote file: {file_name}")
+
+
 
     def handle_register_request(self,) -> None:
         print("Starting the handle register request function")

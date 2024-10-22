@@ -7,6 +7,9 @@
 #include "RSAWrapper.h"
 #include "AESWrapper.h"
 #include "Protocol.h"
+#include <fstream>   // For std::ifstream, std::ofstream
+#include <algorithm>    // std::min
+
 
 #include <iostream>
 #include <iomanip>
@@ -37,6 +40,7 @@ public:
 	void handle_registration();
 	void send_public_key(const std::string);
 	std::string get_encrypted_aes(const std::string);
+	void send_file(std::string, const std::string);
 
 };
 

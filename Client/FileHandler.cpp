@@ -1,5 +1,4 @@
 #include "FileHandler.h"
-#include <fstream>   // For std::ifstream, std::ofstream
 #include <iostream>  // For std::cerr
 #include <stdexcept> // For std::runtime_error
 #include <iomanip> // for std::hex and std::setw
