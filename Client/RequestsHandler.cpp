@@ -1,6 +1,5 @@
 #include "RequestsHandler.h"
 #include "FileHandler.h"
-#include "Protocol.h"
 #include "Endianness.h"
 
 
@@ -28,6 +27,33 @@ bool RequestsHandler::is_valid_ip(std::string ip) {
 }
 bool RequestsHandler::is_valid_port(std::string port) {
 	return true;  // update this function later
+}
+
+void RequestsHandler::send_public_key() {
+	// generate private + public key , keep the private key in priv.info
+	RSAPrivateWrapper priv;
+	std::string private_key = priv.getPrivateKey();
+	std::string public_key = priv.getPublicKey();
+	RSAPublicWrapper pub(public_key);
+	put_key_in_files(public_key);
+	std::unique_ptr<Payload> payload = std::make_unique<SendKeyPayload>(this->client_name, public_key);
+
+	RequestHeader header = RequestHeader(this->client_id, this->client_version, SEND_KEY_REQUEST_CODE, payload->serialize().size());
+	(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	Packet packet(header, std::move(payload));
+
+	std::vector<uint8_t> serialized_data = packet.serialize();
+
+	std::cout << "Serialized Packet (hex): ";
+	for (uint8_t byte : serialized_data) {
+		printf("%02X ", byte);  // Print each byte in hex format for debugging purposes
+	}
+	std::cout << std::endl;
+
+	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
+	std::cout << "Serialized public key sent to server!\n";
+
+
 }
 
 void RequestsHandler::handle_registration() {

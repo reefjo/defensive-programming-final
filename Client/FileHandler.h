@@ -5,7 +5,7 @@
 #include <tuple>
 #include <boost/asio.hpp>
 #include <optional>
-
+#include "Protocol.h"
 #define TRANSFER_FILE_NAME "transfer.info"
 
 
@@ -21,6 +21,7 @@ void sendFile(const std::string& fileName, boost::asio::ip::tcp::socket& socket)
 void receiveFile(const std::string& fileName, boost::asio::ip::tcp::socket& socket);
 
 void write_me_info(const std::string, const std::string);
+void put_key_in_files(std::string);
 
 std::vector<std::string > read_key_from_file();
 std::tuple<std::string, std::string, std::string, std::string> read_transfer_file();

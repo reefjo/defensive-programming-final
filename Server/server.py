@@ -11,6 +11,8 @@ class Server:
         self.port = port
         self.database = database.Database()
         self.selector = selectors.DefaultSelector()  # Initialize the selector
+        self.id_to_key = {}  # untill i use a database, here i store the id -> public key
+        self.registered_ids = set()  # set containing registered id's
 
     def accept_connection(self, server_socket):
         connection, client_address = server_socket.accept()
@@ -20,7 +22,7 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
-        request_handler = RequestHandler(connection, self.database)
+        request_handler = RequestHandler(connection, self.database, self.id_to_key, self.registered_ids)
         print("Created a request handler")
         try:
             request_handler.handle_request()
@@ -28,6 +30,8 @@ class Server:
             print("A client closed the connection.")
             self.selector.unregister(connection)
             connection.close()
+        except Exception as e:
+            print(f"Some error occurred: {e}")
 
 
     def run(self):

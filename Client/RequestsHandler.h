@@ -3,6 +3,13 @@
 #include <boost/asio.hpp>
 #include <iostream>
 #include "RequestPacket.h"
+#include "Base64Wrapper.h"
+#include "RSAWrapper.h"
+#include "AESWrapper.h"
+#include "Protocol.h"
+
+#include <iostream>
+#include <iomanip>
 #define TRANSFER_FILE_NAME "transfer.info"
 
 // This class contains the boost::asio and everything
@@ -28,6 +35,8 @@ private:
 public:
 	RequestsHandler(std::string, std::string, uint8_t);
 	void handle_registration();
+	void send_public_key();
+
 };
 
 

@@ -16,6 +16,7 @@ private:
 	std::string file_path;
 	RequestsHandler requests_handler;
 	bool registered;
+	bool sent_public_key = false;
 
 	// Private constructor that takes the necessary parameters
 	Client(std::tuple<std::string, std::string, std::string, std::string>, std::string);

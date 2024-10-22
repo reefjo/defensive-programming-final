@@ -9,7 +9,7 @@ from request import RequestHeader
 from protocol_constants import (
     REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
-    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE
+    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE
 )
 from database import Database
 from response import Response
@@ -17,11 +17,12 @@ import uuid
 
 
 class RequestHandler:
-    def __init__(self, conn, db: Database):
+    def __init__(self, conn, db: Database, id_to_key : dict, registered_ids : set):
         self.conn = conn
         self.db = db
         self.request_header = RequestHeader()
         self.response = Response()
+        self.id_to_key = id_to_key
 
     def handle_request(self):
         self.request_header.parse_from_socket(self.conn)
@@ -40,10 +41,34 @@ class RequestHandler:
         # send the response
         print(f"After parsing request, trying to send response")
         self.response.send_response(self.conn)
-
     def handle_send_key_request(self):
+        # Receives the public key of the client and saves it, then saves the encrypted key back
+        data = self.conn.recv(self.request_header.payload_size)
+        client_name, public_key = struct.unpack(SEND_KEY_REQUEST_STRUCTURE, data)
+        print(f"{len(client_name) = }, {len(public_key) = }")
+        print(f"Client name received : {client_name}")
+        print(f"Client public key received: {public_key}")
+        print("Thank you for sending me the key! storing it ...(notreally)")
+
+        # import the public key
+        rsa_key = RSA.import_key(public_key)
+
+        # Generate AES key
+        aes_key = get_random_bytes(AES_KEY_SIZE)
+
+        # Encrypt the AES key with the client's public key
+        cipher_rsa = PKCS1_OAEP.new(rsa_key)
+        encrypted_aes_key = cipher_rsa.encrypt(aes_key)
+
+        # Dynamically pack
+        client_id = self.request_header.client_id
+        self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
+        self.response.code = RECEIVED_KEY_SUCCESS_CODE
+
+    def handle_send_file_request(self):
         # Payload : client name (255 bytes), fetch it
         data = self.conn.recv(self.request_header.payload_size)
+        # send file request is more complex , do it later
         client_name, public_key = struct.unpack(SEND_KEY_REQUEST_STRUCTURE, data)
 
         # import the public key

@@ -93,6 +93,7 @@ void Client::check_if_registered() {
 	this->client_id = res[1];
 	if (res.size() == 3) {
 		this->aes_key = res[2];
+		this->sent_public_key = true;
 	}
 	
 
@@ -101,12 +102,19 @@ void Client::check_if_registered() {
 void Client::start() {
 // send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 
-	if (!this->registered) 
+	if (!this->registered) {
 		this->requests_handler.handle_registration();
+		// this->requests_handler.send_key();
+	}
+	
 	else {
 		std::cout << "Client alredy registered . (msg from client start). proceeding to login.\n";
 		//this->requests_handler.handle_login();
 	}
+	if (not sent_public_key) {  // if info.me file doesn't contain a key in third line
+		this->requests_handler.send_public_key();
+	}
+	//this->requests_handler.receive
 	/*
 	if (this->aes_key.empty())  // not exchanged keys yet
 		this->requests_handler.exchange_keys();

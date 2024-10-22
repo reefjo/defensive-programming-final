@@ -22,5 +22,15 @@ public:
 
 };
 
+class SendKeyPayload : public Payload {
+private:
+	std::string client_name;
+	std::string public_key;
+public:
+	SendKeyPayload(const std::string, const std::string);
+	std::vector<uint8_t> serialize() const override;
+	
+
+};
 
 #endif

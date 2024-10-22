@@ -57,6 +57,17 @@ void write_me_info(const std::string client_name, const std::string client_id) {
 	me_info_file.close();
 
 }
+
+void put_key_in_files(std::string key) {
+	// puts the key in file, not the ASCII representation
+	std::ofstream key_file(PRIVATE_KEY_FILE_NAME);
+	if (!key_file) {
+		throw std::runtime_error("Failed to open me.info file for writing");
+	}
+	key_file << key << std::endl;
+	key_file.close();
+
+}
 std::vector<std::string> read_key_from_file() {
 	std::vector<std::string> res;
 	std::string filename = "me.info";
