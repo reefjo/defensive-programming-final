@@ -37,6 +37,7 @@ private:
 	void send_file(std::string file_name, const std::string aes_key);
 	uint32_t get_send_file_response_crc();
 	void send_ack_after_crc(const std:: string, uint16_t);
+	void get_ack_from_server();
 
 
 public:

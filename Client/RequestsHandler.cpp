@@ -31,31 +31,55 @@ bool RequestsHandler::is_valid_port(std::string port) {
 }
 
 void RequestsHandler::handle_send_file(std::string file_name, const std::string aes_key) {
-	uint32_t orig_file_checksum = get_file_checksum(file_name);
+	file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
+
+	uint32_t orig_file_checksum = get_file_checksum(file_name) + 1;
 	for (int i = 0; i < NUM_OF_TRIALS; i++) {
 		send_file(file_name, aes_key);
 		uint32_t server_checksum = get_send_file_response_crc();
 		if (orig_file_checksum == server_checksum) {
 			std::cout << "Both client and server generated same checksums " << server_checksum << " Yay!" << std::endl;
 			send_ack_after_crc(file_name, VALID_CRC_REQUEST_CODE);  // send "valid crc" and return
+			get_ack_from_server();
 			return;
 		}
 		else if (i != NUM_OF_TRIALS - 1) { // its not the last try
+			std::cout << "Checksum is wrong. trying again..." << std::endl;
 			send_ack_after_crc(file_name, INVALID_CRC_REQUEST_CODE); // send "invalid crc" and send file again (next loop)
+			get_ack_from_server();
 		}
 
 	}
 	std::string err = "Failed to receive correct checksum for " + std::to_string(NUM_OF_TRIALS) + " times\n";
 	//throw std::runtime_error(err);
 	std::cout << err;
-	send_ack_after_crc(file_name,)
+	send_ack_after_crc(file_name, INVALID_CRC_FINAL_REQUEST_CODE);
+	get_ack_from_server();
+}
+void RequestsHandler::get_ack_from_server() {
+	ResponseHeader header = unpack_response_header();
+	if (header.get_response_code() != SERVER_OK_CODE) {
+		std::string err = "Expected server ok code: " + std::to_string(SERVER_OK_CODE) +
+			", got instead: " + std::to_string(header.get_response_code()) + "\n";
+		throw std::runtime_error(err);
+	}
+
+	std::vector<uint8_t> buf(header.get_payload_size());
+	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
+
+	// we don't do anything with the client id
+
+
+		
+
+
 }
 void RequestsHandler::send_ack_after_crc(const std::string file_name, uint16_t code) {
 	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(file_name);
 	//	RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
 
 	RequestHeader header = RequestHeader(this->client_id, this->client_version, code, payload->serialize().size());
-	(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	(this->client_id, this->client_version, code, payload->serialize().size());
 	Packet packet(header, std::move(payload));
 
 	std::vector<uint8_t> serialized_data = packet.serialize();
@@ -105,7 +129,7 @@ void RequestsHandler::send_file(std::string file_name, const std::string aes_key
 	file.close();
 
 	// Extend file name to 255 bytes
-	file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
+	//file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
 
 
 
@@ -113,7 +137,7 @@ void RequestsHandler::send_file(std::string file_name, const std::string aes_key
 	// 2. encrypt the data in that file
 	AESWrapper aes(reinterpret_cast<const unsigned char*>(aes_key.c_str()), AESWrapper::DEFAULT_KEYLENGTH);
 	std::string encrypted_data = aes.encrypt(file_data.data(), file_data.size());
-	std::cout << "Encrypted data from file: " << encrypted_data << std::endl;
+	//std::cout << "Encrypted data from file: " << encrypted_data << std::endl;
 
 
 
@@ -162,7 +186,7 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
 	std::string client_id = std::string(buf.begin(), buf.begin() + ID_SIZE);
 	std::string encrypted_key = std::string(buf.begin() + ID_SIZE, buf.end());
-	std::cout << "Encrypted key received: " << encrypted_key << std::endl;
+	//std::cout << "Encrypted key received: " << encrypted_key << std::endl;
 
 
 	// Decrypt the AES key using the client's private RSA key
@@ -172,9 +196,6 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	std::cout << "Decrypted AES key: " << decrypted_aes_key << std::endl;
 
 	return decrypted_aes_key;  // Return the decrypted AES key
-
-
-
 
 }
 

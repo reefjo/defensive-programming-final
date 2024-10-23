@@ -31,6 +31,7 @@ constexpr uint16_t REGISTER_FAIL_CODE = 1601;
 constexpr uint16_t RECEIVED_KEY_SUCCESS_CODE = 1602;
 constexpr uint16_t RECEIVED_FILE_SUCCESS_CODE = 1603;
 constexpr uint16_t LOGIN_SUCCESS_CODE = 1605;
+constexpr uint16_t SERVER_OK_CODE = 1604;
 // Response header sizes?
 constexpr uint8_t SERVER_VERSION_SIZE = 1;
 constexpr uint8_t SERVER_RESPONSE_SIZE = 2;

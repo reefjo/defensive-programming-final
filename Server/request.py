@@ -17,7 +17,7 @@ class RequestHeader:
         if not data:
             raise ConnectionError("Client disconnected socket")
         elif len(data) < REQUEST_HEADER_SIZE:
-            raise ConnectionError("Insufficient data received from client (less than expected)")
+            raise ConnectionError(f"Insufficient data received from client (less than expected): {data = }")
 
         # Extract fields from the received data
         self.client_id = data[:CLIENT_ID_SIZE]

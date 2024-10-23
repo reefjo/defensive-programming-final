@@ -1,6 +1,8 @@
 import socket
 import struct
 
+from django.template.context_processors import request
+
 from cksum import memcrc
 from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
 
@@ -9,7 +11,8 @@ from protocol_constants import (
     REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
     AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_STRUCTURE,
-    FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE
+    FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE, INVALID_CRC_CODE, VALID_CRC_CODE,
+    INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE
 )
 from database import Database
 from response import Response
@@ -29,13 +32,15 @@ class RequestHandler:
         print("Request received from client")
         # if an error has occured, put general code fail
         try:
-
-            if self.request_header.code == REGISTER_CODE:
+            code = self.request_header.code
+            if code == REGISTER_CODE:
                 self.handle_register_request()
-            elif self.request_header.code == SEND_FILE_CODE:
+            elif code == SEND_FILE_CODE:
                 self.handle_send_file_request()
-            elif self.request_header.code == SEND_KEY_CODE:
+            elif code == SEND_KEY_CODE:
                 self.handle_send_key_request()
+            elif code == INVALID_CRC_CODE or code == VALID_CRC_CODE or code == INVALID_CRC_FINAL_CODE:
+                self.handle_crc_codes()
             else:
                 raise Exception("Unknown request code")
         except Exception as e:
@@ -49,6 +54,17 @@ class RequestHandler:
                 print(f"Sent the response (not send file request) after parsing request")
 
 
+    def handle_crc_codes(self):
+        # send back acknowledgement + client id
+        # get the client name from payload
+        data = self.conn.recv(FILE_NAME_SIZE)
+        if not data:
+            raise ConnectionError("Client didn't send payload")
+        if len(data) < FILE_NAME_SIZE:
+            raise Exception(f"File name size is less than expected: {data = }")
+        self.response.payload = struct.pack('<%ds' % CLIENT_ID_SIZE, self.request_header.client_id)
+        self.response.code = SERVER_ACK_CODE  # Acknowledge we received the request
+        print("sending ack to client")
 
     def handle_send_key_request(self):
         # Receives the public key of the client and saves it, then saves the encrypted key back
