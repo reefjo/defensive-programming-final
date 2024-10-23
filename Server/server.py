@@ -11,7 +11,8 @@ class Server:
         self.port = port
         self.database = database.Database()
         self.selector = selectors.DefaultSelector()  # Initialize the selector
-        self.id_to_key = {}  # untill i use a database, here i store the id -> public key
+        self.id_to_aes_key = {}  # untill i use a database, here i store the id -> public key
+        self.id_to_public_key = {}
         self.registered_ids = set()  # set containing registered id's
 
     def accept_connection(self, server_socket):
@@ -22,7 +23,7 @@ class Server:
         self.selector.register(connection, selectors.EVENT_READ, self.handle_client)
 
     def handle_client(self, connection):
-        request_handler = RequestHandler(connection, self.database, self.id_to_key, self.registered_ids)
+        request_handler = RequestHandler(connection, self.database, self.id_to_aes_key, self.id_to_public_key)
         print("Created a request handler")
         try:
             request_handler.handle_request()

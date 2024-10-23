@@ -61,43 +61,33 @@ void put_key_in_files(std::string key) {
 	// puts the key in file, not the ASCII representation
 	std::ofstream key_file(PRIVATE_KEY_FILE_NAME);
 	if (!key_file) {
-		throw std::runtime_error("Failed to open me.info file for writing");
+		throw std::runtime_error("Failed to open private key file for writing");
 	}
 	key_file << key << std::endl;
 	key_file.close();
+	std::ofstream me_info_file(ME_INFO_FILE_NAME, std::ios::app);
+	if (!me_info_file) {
+		throw std::runtime_error("Failed to open me.info file for writing");
+	}
+	me_info_file << key << std::endl; // Appends the key at the end (third line)
+	me_info_file.close();
 
 }
-std::vector<std::string> read_key_from_file() {
+std::vector<std::string> read_lines_from_file(const std::string& file_name) {
 	std::vector<std::string> res;
-	std::ifstream info_file(ME_INFO_FILE_NAME);
-	if (!info_file) {
-		return res;  // result with 0 elements means no such file exists
-	}
-	std::string cname, id, key;
-	std::getline(info_file, cname);
-	std::getline(info_file, id);
-	std::getline(info_file, key);
-	std::cout << " Inside read_key_from_file, length of client name is: " << cname.length() << std::endl;
+	std::ifstream file(file_name);
 
+	if (!file) {
+		return res;  // File doesn't exist, return empty vector
+	}
 
-	
-	// load the key into this client
-	res.push_back(cname);
-	res.push_back(id);
-	if (key.empty()) {
-		std::cout << "Client not exchanged keys yet\n";
-		return res;
+	std::string line;
+	while (std::getline(file, line)) {
+		res.push_back(line);
 	}
-	res.push_back(key);
-	std::stringstream hex_representation;  // for debugging purposes . delete later.
-	for (unsigned char c : res[1]) {
-		hex_representation << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(c);
-	}
-	std::cout << "read_key_from_file returned vector with: \nclient name = " << res[0]
-		<< ", id = " << hex_representation.str() << ", key = " << res[2] << std::endl;
-	info_file.close();
+
+	file.close();
 	return res;
-
 }
 /*
 std::string get_file_from_connection() {

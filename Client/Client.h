@@ -5,6 +5,7 @@
 #include "RequestsHandler.h" 
 #include <optional> //  for std::optional, if i will choose to use it (delete this line if not!)
 #include "Protocol.h"
+#include "Base64Wrapper.h"
 
 const uint8_t CLIENT_VERSION = 3;
 
@@ -17,15 +18,19 @@ private:
 	std::string file_path;
 	RequestsHandler requests_handler;
 	bool registered;
-	bool sent_public_key = false;
+	bool exchanged = false;
 
 	// Private constructor that takes the necessary parameters
 	Client(std::tuple<std::string, std::string, std::string, std::string>, std::string);
 
 	//void read_transfer_and_connect();
 	void authenticate();
-	void check_if_registered();
-	std::string generate_keys();
+	void load_stored_credentials();
+	std::string generate_keys ();
+	bool attempt_login();
+	bool attempt_register();
+	std::string hex_to_binary(const std::string& hex_str);
+	
 public:
 	Client(); // Constructor
 	void start(); // Method to start the client

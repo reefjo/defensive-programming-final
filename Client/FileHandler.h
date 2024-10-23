@@ -24,7 +24,7 @@ void receiveFile(const std::string& fileName, boost::asio::ip::tcp::socket& sock
 void write_me_info(const std::string, const std::string);
 void put_key_in_files(std::string);
 
-std::vector<std::string > read_key_from_file();
+std::vector<std::string >read_lines_from_file(const std::string& file_name);
 std::tuple<std::string, std::string, std::string, std::string> read_transfer_file();
 
 

@@ -22,6 +22,105 @@ RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cve
 
 }
 
+
+std::optional<std::string> RequestsHandler::login_and_get_aes(std::string private_rsa_key) {
+	for (int i = 0; i < NUM_OF_TRIALS; i++) {
+		std::cout << "Trying to login for the " << i + 1 << " time\n";
+		send_authenticate_request(LOGIN_REQUEST_CODE);
+		std::optional<std::string> encrypted_aes = get_login_response();
+		if (encrypted_aes) {
+			std::cout << "Successfully login and got encrypted aes key from server! Decrypting...\n";
+			RSAPrivateWrapper rsa_private(private_rsa_key);
+			std::string decrypted_aes_key = rsa_private.decrypt(encrypted_aes.value());
+
+			return decrypted_aes_key;  // Return the decrypted AES key
+
+		}
+
+	}
+	return std::nullopt;  // failed to login multiple times
+}
+
+std::optional<std::string>RequestsHandler::get_login_response() {
+	ResponseHeader header = unpack_response_header();
+	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: "
+		<< header.get_response_code() << " Payload size: " << header.get_payload_size() << std::endl;
+
+	// receive the payload
+	std::vector<uint8_t> buf(header.get_payload_size());
+	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
+	std::cout << "Received client id: " << client_id << std::endl;
+	if (header.get_response_code() == LOGIN_SUCCESS_CODE) {
+		// take the key only
+		std::string encrypted_aes_key = std::string(buf.begin() + ID_SIZE, buf.end());
+		return encrypted_aes_key;
+	}
+	return std::nullopt;
+
+
+
+}
+
+std::string RequestsHandler::register_and_get_id() {
+	// if register failed - return error (we can't proceed in program if both login and registration failed)
+
+	for (uint8_t i = 0; i < NUM_OF_TRIALS; i++) {
+		send_authenticate_request(REGISTER_REQUEST_CODE);
+		std::optional<std::string> id = get_register_response_id();
+		if (id) {
+			std::cout << "Successfully received id: " << id.value() << std::endl;
+			return id.value();
+		}
+	}
+	std::string err = "Failed to register for " + std::to_string(NUM_OF_TRIALS) + " times\n";
+	throw std::runtime_error(err);
+}
+
+std::optional<std::string> RequestsHandler::get_register_response_id() {
+	// returns response if if response code was OK, else returns null
+
+	ResponseHeader header = unpack_response_header();
+	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: "
+		<< header.get_response_code() << " Payload size: " << header.get_payload_size() << std::endl;
+
+	// receive the payload
+	std::vector<uint8_t> buf(header.get_payload_size());
+	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
+	std::cout << "Received client id: " << client_id << std::endl;
+	if (header.get_response_code() == REGISTER_SUCCESS_CODE) {
+
+		this->client_id = std::string(buf.begin(), buf.end());  // update client id 
+		write_me_info(this->client_name, this->client_id);  // write into me.info the client name and id
+		return this->client_id;
+	}
+	return std::nullopt;
+
+}
+
+void RequestsHandler::send_authenticate_request(uint16_t request_code) {
+
+	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(this->client_name);
+	//	RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
+
+	RequestHeader header = RequestHeader(this->client_id, this->client_version, request_code, payload->serialize().size());
+	(this->client_id, this->client_version, request_code, payload->serialize().size());
+	Packet packet(header, std::move(payload));
+
+	std::vector<uint8_t> serialized_data = packet.serialize();
+
+	std::cout << "Serialized Packet (hex): ";
+	for (uint8_t byte : serialized_data) {
+		printf("%02X ", byte);  // Print each byte in hex format for debugging purposes
+	}
+	std::cout << std::endl;
+
+	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
+	std::cout << "authentication data sent to server!\n";
+
+}
+
+
+
 bool RequestsHandler::is_valid_ip(std::string ip) {
 	return true; // update this function laterd
 
@@ -33,12 +132,12 @@ bool RequestsHandler::is_valid_port(std::string port) {
 void RequestsHandler::handle_send_file(std::string file_name, const std::string aes_key) {
 	file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
 
-	uint32_t orig_file_checksum = get_file_checksum(file_name) + 1;
+	uint32_t orig_file_checksum = get_file_checksum(file_name);
 	for (int i = 0; i < NUM_OF_TRIALS; i++) {
 		send_file(file_name, aes_key);
 		uint32_t server_checksum = get_send_file_response_crc();
 		if (orig_file_checksum == server_checksum) {
-			std::cout << "Both client and server generated same checksums " << server_checksum << " Yay!" << std::endl;
+			std::cout << "Both client and server generated same checksum: " << server_checksum << " Yay!" << std::endl;
 			send_ack_after_crc(file_name, VALID_CRC_REQUEST_CODE);  // send "valid crc" and return
 			get_ack_from_server();
 			return;
@@ -70,7 +169,7 @@ void RequestsHandler::get_ack_from_server() {
 	// we don't do anything with the client id
 
 
-		
+
 
 
 }
@@ -193,7 +292,7 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	RSAPrivateWrapper rsa_private(private_rsa_key);
 	std::string decrypted_aes_key = rsa_private.decrypt(encrypted_key);
 
-	std::cout << "Decrypted AES key: " << decrypted_aes_key << std::endl;
+	//std::cout << "Decrypted AES key: " << decrypted_aes_key << std::endl;
 
 	return decrypted_aes_key;  // Return the decrypted AES key
 
@@ -224,57 +323,8 @@ void RequestsHandler::send_public_key(const std::string public_key) {
 
 }
 
-void RequestsHandler::handle_registration() {
-	std::cout << "Client id start of handle_registration: " << client_id << std::endl;
-	for (uint8_t i = 0; i < NUM_OF_TRIALS; i++) {
-		send_register_request();
-		if (handle_register_response()) // Server responded with success and created a me.info file
-			return;
-	}
-	std::string err = "Failed to register for " + std::to_string(NUM_OF_TRIALS) + " times\n";
-	throw std::runtime_error(err);
-}
 
-void RequestsHandler::send_register_request() {
 
-	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(this->client_name);
-	//	RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
-
-	RequestHeader header = RequestHeader(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
-	(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
-	Packet packet(header, std::move(payload));
-
-	std::vector<uint8_t> serialized_data = packet.serialize();
-
-	std::cout << "Serialized Packet (hex): ";
-	for (uint8_t byte : serialized_data) {
-		printf("%02X ", byte);  // Print each byte in hex format for debugging purposes
-	}
-	std::cout << std::endl;
-
-	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
-	std::cout << "Serialized data sent to server!\n";
-
-}
-bool RequestsHandler::handle_register_response() {
-
-	ResponseHeader header = unpack_response_header();
-	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: "
-		<< header.get_response_code() << " Payload size: " << header.get_payload_size() << std::endl;
-
-	if (header.get_response_code() == REGISTER_SUCCESS_CODE) {
-		// receive the payload
-		std::vector<uint8_t> buf(header.get_payload_size());
-		boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
-		this->client_id = std::string(buf.begin(), buf.end());
-		std::cout << "Received client id: " << client_id << std::endl;
-		write_me_info(this->client_name, this->client_id);
-		return true;
-
-	}
-	return false; // registration attempt failed
-
-}
 
 ResponseHeader RequestsHandler::unpack_response_header() {
 
@@ -310,4 +360,7 @@ uint16_t RequestsHandler::get_uint16_from_vec(const std::vector<uint8_t>& vec, u
 
 	uint16_t res = vec[i] | vec[i + 1] << 8;
 	return res;
+}
+void RequestsHandler::set_id(std::string id) {
+	this->client_id = id;
 }

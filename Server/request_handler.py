@@ -1,7 +1,6 @@
 import socket
 import struct
 
-from django.template.context_processors import request
 
 from cksum import memcrc
 from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
@@ -12,7 +11,8 @@ from protocol_constants import (
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
     AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_STRUCTURE,
     FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE, INVALID_CRC_CODE, VALID_CRC_CODE,
-    INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE
+    INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE, LOGIN_CODE, LOGIN_FAIL_CODE,
+    LOGIN_SUCCESS_CODE
 )
 from database import Database
 from response import Response
@@ -20,12 +20,13 @@ import uuid
 
 
 class RequestHandler:
-    def __init__(self, conn, db: Database, id_to_key : dict, registered_ids : set):
+    def __init__(self, conn, db: Database, id_to_aes_key : dict, id_to_public_key):
         self.conn = conn
         self.db = db
         self.request_header = RequestHeader()
         self.response = Response()
-        self.id_to_key = id_to_key
+        self.id_to_aes_key = id_to_aes_key
+        self.id_to_public_key = id_to_public_key
 
     def handle_request(self):
         self.request_header.parse_from_socket(self.conn)
@@ -41,6 +42,9 @@ class RequestHandler:
                 self.handle_send_key_request()
             elif code == INVALID_CRC_CODE or code == VALID_CRC_CODE or code == INVALID_CRC_FINAL_CODE:
                 self.handle_crc_codes()
+            elif code == LOGIN_CODE:
+                self.handle_login_request()
+
             else:
                 raise Exception("Unknown request code")
         except Exception as e:
@@ -53,6 +57,19 @@ class RequestHandler:
                 self.response.send_response(self.conn)
                 print(f"Sent the response (not send file request) after parsing request")
 
+    def handle_login_request(self):
+        # if client is in hash set of clients , accept. otherwise, send fail
+        client_name = self.conn.recv(CLIENT_NAME_SIZE)
+        if not client_name:
+            raise ConnectionError("Client didn't send his name.")
+        if self.request_header.client_id not in self.id_to_aes_key:
+            print(f"Failed to login {client_name} because he's not registered ")
+            self.response.code = LOGIN_FAIL_CODE
+            return
+        print(f"Client {client_name} login successfully!")
+        public_key = self.id_to_public_key[self.request_header.client_id]
+        self.load_encrypted_key_and_id(public_key)
+        self.response.code = LOGIN_SUCCESS_CODE
 
     def handle_crc_codes(self):
         # send back acknowledgement + client id
@@ -75,9 +92,9 @@ class RequestHandler:
         print(f"Client public key received: {public_key}")
         print("Thank you for sending me the key! storing it ...(notreally)")
 
-        self.id_to_key[self.request_header.client_id] = public_key
+        self.id_to_public_key[self.request_header.client_id] = public_key
 
-        # update response code and payload as successful handling
+        # update response code and payload as successful handling, and send new aes key
         self.load_encrypted_key_and_id(public_key)
         self.response.code = RECEIVED_KEY_SUCCESS_CODE
         print("Encrypted key sent to client, and stored id->aes_key.")
@@ -88,7 +105,7 @@ class RequestHandler:
         aes_key = generate_aes_key()
 
         # Assign the key to this id
-        self.id_to_key[self.request_header.client_id] = aes_key
+        self.id_to_aes_key[self.request_header.client_id] = aes_key
 
 
         encrypted_aes_key = encrypt_aes_key(aes_key, public_key)
@@ -101,7 +118,7 @@ class RequestHandler:
     def handle_send_file_request(self):
         # store the encrypted data. in the end(last packet), take encrypted data out and put the decrypted data
 
-        if self.request_header.client_id not in self.id_to_key:
+        if self.request_header.client_id not in self.id_to_aes_key:
             raise Exception("Client has not registered, client id not found")
 
         data = self.conn.recv(self.request_header.payload_size)
@@ -125,7 +142,7 @@ class RequestHandler:
             encrypted_file_data = ""
             with open(file_name_stripped, 'rb') as f:
                 encrypted_file_data = f.read()
-            aes_key = self.id_to_key[self.request_header.client_id]
+            aes_key = self.id_to_aes_key[self.request_header.client_id]
 
             decrypted_data = decrypt_aes_data(encrypted_file_data, aes_key)
             checksum = memcrc(decrypted_data)

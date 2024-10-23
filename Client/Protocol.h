@@ -9,6 +9,8 @@ constexpr uint8_t ID_SIZE = 16;
 constexpr uint8_t CLIENT_NAME_SIZE = 255;
 constexpr uint8_t FILE_NAME_SIZE = 255;
 constexpr uint16_t REGISTER_REQUEST_CODE = 825;
+constexpr uint16_t LOGIN_REQUEST_CODE = 827;
+
 constexpr uint16_t SEND_KEY_REQUEST_CODE = 826;
 constexpr uint16_t SEND_FILE_REQUEST_CODE = 828;
 constexpr uint16_t VALID_CRC_REQUEST_CODE = 900;
