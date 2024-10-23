@@ -32,7 +32,11 @@ private:
 	ResponseHeader unpack_response_header();
 	void send_register_request();
 	bool handle_register_response();
-
+	uint32_t get_uint32_from_vec(const std::vector<uint8_t>& vec, uint32_t i);
+	uint16_t get_uint16_from_vec(const std::vector<uint8_t>& vec, uint32_t i);
+	void send_file(std::string file_name, const std::string aes_key);
+	uint32_t get_send_file_response_crc();
+	void send_ack_after_crc(const std:: string, uint16_t);
 
 
 public:
@@ -40,7 +44,8 @@ public:
 	void handle_registration();
 	void send_public_key(const std::string);
 	std::string get_encrypted_aes(const std::string);
-	void send_file(std::string, const std::string);
+	void handle_send_file(std::string, const std::string);
+
 
 };
 

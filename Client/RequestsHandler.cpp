@@ -1,6 +1,7 @@
 #include "RequestsHandler.h"
 #include "FileHandler.h"
 #include "Endianness.h"
+#include "cksum.h"
 
 
 RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cversion)
@@ -28,11 +29,66 @@ bool RequestsHandler::is_valid_ip(std::string ip) {
 bool RequestsHandler::is_valid_port(std::string port) {
 	return true;  // update this function later
 }
-void RequestsHandler::send_file(std::string file_name,  const std::string aes_key) {
+
+void RequestsHandler::handle_send_file(std::string file_name, const std::string aes_key) {
+	uint32_t orig_file_checksum = get_file_checksum(file_name);
+	for (int i = 0; i < NUM_OF_TRIALS; i++) {
+		send_file(file_name, aes_key);
+		uint32_t server_checksum = get_send_file_response_crc();
+		if (orig_file_checksum == server_checksum) {
+			std::cout << "Both client and server generated same checksums " << server_checksum << " Yay!" << std::endl;
+			send_ack_after_crc(file_name, VALID_CRC_REQUEST_CODE);  // send "valid crc" and return
+			return;
+		}
+		else if (i != NUM_OF_TRIALS - 1) { // its not the last try
+			send_ack_after_crc(file_name, INVALID_CRC_REQUEST_CODE); // send "invalid crc" and send file again (next loop)
+		}
+
+	}
+	std::string err = "Failed to receive correct checksum for " + std::to_string(NUM_OF_TRIALS) + " times\n";
+	//throw std::runtime_error(err);
+	std::cout << err;
+	send_ack_after_crc(file_name,)
+}
+void RequestsHandler::send_ack_after_crc(const std::string file_name, uint16_t code) {
+	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(file_name);
+	//	RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
+
+	RequestHeader header = RequestHeader(this->client_id, this->client_version, code, payload->serialize().size());
+	(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	Packet packet(header, std::move(payload));
+
+	std::vector<uint8_t> serialized_data = packet.serialize();
+
+	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
+	std::cout << "Sent code: " << code << " To server " << std::endl;
+
+}
+
+uint32_t RequestsHandler::get_send_file_response_crc() {
+	// function to receive the send file response
+	// returns the checksum from the payload
+	ResponseHeader header = unpack_response_header();
+	if (header.get_response_code() != RECEIVED_FILE_SUCCESS_CODE)
+		throw std::runtime_error("Server sent incorrect code, expected received file successfully code");
+
+	// Payload: Client_id(16 bytes), content_size(4 bytes), file_name(255 bytes), checksum(4 bytes)
+	// get last 4 bytes, that should be the cheecksum
+	std::vector<uint8_t> buf(header.get_payload_size());
+	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
+
+	uint32_t checksum = get_uint32_from_vec(buf, buf.size() - CHECKSUM_SIZE);
+	std::cout << "Checksum received from server: " << checksum << std::endl;
+	checksum = Endianness::from_little_to_native(checksum);
+	std::cout << "Checksum after converting to native :" << checksum << std::endl;
+	return checksum;
+
+}
+
+void RequestsHandler::send_file(std::string file_name, const std::string aes_key) {
 	std::ifstream file(file_name, std::ios::binary);
 	if (!file) {
-		std::cerr << "Error opening file: " << file_name << std::endl;
-		return;
+		throw std::runtime_error("Error opening file: " + file_name);
 	}
 
 	// Get the file size
@@ -71,7 +127,7 @@ void RequestsHandler::send_file(std::string file_name,  const std::string aes_ke
 
 	for (uint16_t packet_num = 1; packet_num <= total_packets; ++packet_num) {
 		// Calculate the offset and the size of the current chunk
-		uint32_t offset = (packet_num - 1)* BUFFER_SIZE;
+		uint32_t offset = (packet_num - 1) * BUFFER_SIZE;
 		uint32_t chunk_size = std::min(static_cast<uint32_t>(BUFFER_SIZE), encrypted_data_size - offset);
 
 		// Extract the chunk from the encrypted data
@@ -79,7 +135,7 @@ void RequestsHandler::send_file(std::string file_name,  const std::string aes_ke
 
 		// 5. Create a SendFilePayload payload for the current chunk
 		std::unique_ptr<Payload> payload = std::make_unique<SendFilePayload>
-			(encrypted_data_size, orig_file_size, packet_num, total_packets,file_name, chunk_data);
+			(encrypted_data_size, orig_file_size, packet_num, total_packets, file_name, chunk_data);
 
 
 		RequestHeader header = RequestHeader(this->client_id, this->client_version, SEND_FILE_REQUEST_CODE, payload->serialize().size());
@@ -104,12 +160,12 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	std::cout << "Server sent key success code. now trying to get the encrypted key\n";
 	std::vector<uint8_t> buf(header.get_payload_size());
 	boost::asio::read(this->socket, boost::asio::buffer(buf, header.get_payload_size()));
-	std::string client_id  = std::string(buf.begin(), buf.begin() + ID_SIZE);
+	std::string client_id = std::string(buf.begin(), buf.begin() + ID_SIZE);
 	std::string encrypted_key = std::string(buf.begin() + ID_SIZE, buf.end());
 	std::cout << "Encrypted key received: " << encrypted_key << std::endl;
 
 
-		// Decrypt the AES key using the client's private RSA key
+	// Decrypt the AES key using the client's private RSA key
 	RSAPrivateWrapper rsa_private(private_rsa_key);
 	std::string decrypted_aes_key = rsa_private.decrypt(encrypted_key);
 
@@ -118,7 +174,7 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	return decrypted_aes_key;  // Return the decrypted AES key
 
 
-	
+
 
 }
 
@@ -163,8 +219,8 @@ void RequestsHandler::send_register_request() {
 	std::unique_ptr<Payload> payload = std::make_unique<RegisterPayload>(this->client_name);
 	//	RequestHeader(const std::string id, uint8_t version, uint16_t code, uint32_t payload_size);
 
-	RequestHeader header = RequestHeader(this->client_id,this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
-		(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	RequestHeader header = RequestHeader(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
+	(this->client_id, this->client_version, REGISTER_REQUEST_CODE, payload->serialize().size());
 	Packet packet(header, std::move(payload));
 
 	std::vector<uint8_t> serialized_data = packet.serialize();
@@ -182,7 +238,7 @@ void RequestsHandler::send_register_request() {
 bool RequestsHandler::handle_register_response() {
 
 	ResponseHeader header = unpack_response_header();
-	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: " 
+	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: "
 		<< header.get_response_code() << " Payload size: " << header.get_payload_size() << std::endl;
 
 	if (header.get_response_code() == REGISTER_SUCCESS_CODE) {
@@ -199,7 +255,7 @@ bool RequestsHandler::handle_register_response() {
 
 }
 
-ResponseHeader RequestsHandler:: unpack_response_header() {
+ResponseHeader RequestsHandler::unpack_response_header() {
 
 	// fill up the response parts : version, code, payload size.
 	std::vector<uint8_t> response_buffer(SERVER_RESPONSE_HEADER_SIZE);
@@ -211,8 +267,7 @@ ResponseHeader RequestsHandler:: unpack_response_header() {
 
 	uint16_t response_code = response_buffer[1] | response_buffer[2] << 8;
 
-	uint32_t payload_size = response_buffer[3] | response_buffer[4] << 8
-		| response_buffer[5] << 16 | response_buffer[6] << 24;
+	uint32_t payload_size = get_uint32_from_vec(response_buffer, 3);
 
 	// The sizes are in little endian, convert to native
 	response_code = Endianness::from_little_to_native(response_code);
@@ -220,4 +275,18 @@ ResponseHeader RequestsHandler:: unpack_response_header() {
 
 	return ResponseHeader(server_version, response_code, payload_size);
 
+}
+
+uint32_t RequestsHandler::get_uint32_from_vec(const std::vector<uint8_t>& vec, uint32_t i) {
+	// returns the uint32_t sitting at index i, i+1, i+2, i+3
+	uint32_t res = vec[i] | vec[i + 1] << 8
+		| vec[i + 2] << 16 | vec[i + 3] << 24;
+	return res;
+
+}
+uint16_t RequestsHandler::get_uint16_from_vec(const std::vector<uint8_t>& vec, uint32_t i) {
+	// returns the uint16_t sitting at index i, i+1
+
+	uint16_t res = vec[i] | vec[i + 1] << 8;
+	return res;
 }

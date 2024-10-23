@@ -119,9 +119,10 @@ class RequestHandler:
             with open(file_name_stripped, 'wb') as f:  # open this file again and write the decrypted data
                 f.write(decrypted_data)
 
-            print(f"Successfully decrypted and wrote file: {file_name}")
+            print(f"Successfully decrypted and wrote file: {file_name_stripped}")
+            print(f"{checksum = }")
             self.response.payload = struct.pack('<%dsI%dsI' % (len(self.request_header.client_id), len(file_name)),
-                                                self.request_header.client_id, len(encrypted_file_data), len(file_name), checksum)
+                                                self.request_header.client_id, len(encrypted_file_data), file_name, checksum)
             self.response.code = RECEIVED_FILE_SUCCESS_CODE
 
 
