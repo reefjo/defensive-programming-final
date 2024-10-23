@@ -26,8 +26,8 @@ class Server:
         print("Created a request handler")
         try:
             request_handler.handle_request()
-        except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
-            print("A client closed the connection.")
+        except (ConnectionResetError, ConnectionAbortedError, ConnectionError)  as e:
+            print(e)
             self.selector.unregister(connection)
             connection.close()
         except Exception as e:

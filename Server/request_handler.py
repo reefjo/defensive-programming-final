@@ -1,18 +1,15 @@
 import socket
 import struct
-import Crypto
-from Crypto.Cipher import PKCS1_OAEP, AES
-from Crypto.Random import get_random_bytes
-from Crypto.PublicKey import RSA
-from Crypto.Util import Padding
-from Crypto.Util.Padding import unpad
+
+from cksum import memcrc
+from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
 
 from request import RequestHeader
 from protocol_constants import (
     REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
     AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_STRUCTURE,
-    FILE_PAYLOAD_SIZE_WITHOUT_DATA
+    FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE
 )
 from database import Database
 from response import Response
@@ -30,20 +27,28 @@ class RequestHandler:
     def handle_request(self):
         self.request_header.parse_from_socket(self.conn)
         print("Request received from client")
+        # if an error has occured, put general code fail
+        try:
+
+            if self.request_header.code == REGISTER_CODE:
+                self.handle_register_request()
+            elif self.request_header.code == SEND_FILE_CODE:
+                self.handle_send_file_request()
+            elif self.request_header.code == SEND_KEY_CODE:
+                self.handle_send_key_request()
+            else:
+                raise Exception("Unknown request code")
+        except Exception as e:
+            print(f"Error handling request: {str(e)}")
+            self.response.code = GENERAL_FAIL_CODE  # Some general error has occured
+        finally:
+            if self.request_header.code != SEND_FILE_CODE or self.response.payload:
+                # Send back a response if:
+                # 1: its not a send file request  2: It's a response to last packet received in send file request
+                self.response.send_response(self.conn)
+                print(f"Sent the response (not send file request) after parsing request")
 
 
-        if self.request_header.code == REGISTER_CODE:
-            self.handle_register_request()
-        elif self.request_header.code == SEND_FILE_CODE:
-            self.handle_send_file_request()
-        elif self.request_header.code == SEND_KEY_CODE:
-            self.handle_send_key_request()
-        else:
-            print(f"Unknown request code: {self.request_header.code}")
-            self.response.code = GENERAL_FAIL_CODE
-        # send the response
-        print(f"After parsing request, trying to send response")
-        self.response.send_response(self.conn)
 
     def handle_send_key_request(self):
         # Receives the public key of the client and saves it, then saves the encrypted key back
@@ -56,25 +61,21 @@ class RequestHandler:
 
         self.id_to_key[self.request_header.client_id] = public_key
 
-
-        self.response.code = RECEIVED_KEY_SUCCESS_CODE
+        # update response code and payload as successful handling
         self.load_encrypted_key_and_id(public_key)
+        self.response.code = RECEIVED_KEY_SUCCESS_CODE
         print("Encrypted key sent to client, and stored id->aes_key.")
 
     def load_encrypted_key_and_id(self, public_key):  # useful for server responses: 1602 and 1605
 
-        # import the public key
-        rsa_key = RSA.import_key(public_key)
-
         # Generate AES key
-        aes_key = get_random_bytes(AES_KEY_SIZE)
+        aes_key = generate_aes_key()
 
         # Assign the key to this id
         self.id_to_key[self.request_header.client_id] = aes_key
 
-        # Encrypt the AES key with the client's public key
-        cipher_rsa = PKCS1_OAEP.new(rsa_key)
-        encrypted_aes_key = cipher_rsa.encrypt(aes_key)
+
+        encrypted_aes_key = encrypt_aes_key(aes_key, public_key)
         print(f"{encrypted_aes_key = }")
 
         # Dynamically pack
@@ -82,37 +83,46 @@ class RequestHandler:
         self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
 
     def handle_send_file_request(self):
+        # store the encrypted data. in the end(last packet), take encrypted data out and put the decrypted data
+
         if self.request_header.client_id not in self.id_to_key:
             raise Exception("Client has not registered, client id not found")
-        aes_key = self.id_to_key[self.request_header.client_id]
 
         data = self.conn.recv(self.request_header.payload_size)
         file_data_len = self.request_header.payload_size - FILE_PAYLOAD_SIZE_WITHOUT_DATA
         structure_with_data = SEND_FILE_REQUEST_STRUCTURE + f"{file_data_len}s"
 
+
         content_size, orig_file_size, packet_number, total_packets, file_name, encrypted_data = struct.unpack(
             structure_with_data, data)
         print(f"Received {content_size = }, {orig_file_size = }, {packet_number = }")
         print(f"{total_packets = }, {file_name = },\n {encrypted_data = }")
-        print("Thank you for sending the file! trying to store it")
+        print("Thank you for sending the file! trying to store it encrypted")
         print(f"The encrypted data length: {len(encrypted_data)}, should be {content_size}")
 
-        file_name = file_name.rstrip(b'\x00').decode('utf-8')
+        file_name_stripped = file_name.rstrip(b'\x00').decode('utf-8')
 
-        # Use zero IV to match C++ implementation
-        iv = bytes(16)  # Create a zero IV
-        cipher = AES.new(aes_key, AES.MODE_CBC, iv=iv)
+        mode = "wb" if packet_number == 1 else "ab"
+        with open(file_name_stripped, mode) as f:
+            f.write(encrypted_data)
+        if packet_number == total_packets:  # it was the last packet
+            encrypted_file_data = ""
+            with open(file_name_stripped, 'rb') as f:
+                encrypted_file_data = f.read()
+            aes_key = self.id_to_key[self.request_header.client_id]
 
-        # Decrypt the data
-        decrypted_data = Padding.unpad(cipher.decrypt(encrypted_data), AES.block_size)
-        # Remove padding - use the original file size as reference
+            decrypted_data = decrypt_aes_data(encrypted_file_data, aes_key)
+            checksum = memcrc(decrypted_data)
+            # Remove padding - use the original file size as reference
 
-        # Write decrypted data to file
-        with open(file_name, 'wb') as f:
-            f.write(decrypted_data)
+            # Write decrypted data to file
+            with open(file_name_stripped, 'wb') as f:  # open this file again and write the decrypted data
+                f.write(decrypted_data)
 
-        print(f"Successfully decrypted and wrote file: {file_name}")
-
+            print(f"Successfully decrypted and wrote file: {file_name}")
+            self.response.payload = struct.pack('<%dsI%dsI' % (len(self.request_header.client_id), len(file_name)),
+                                                self.request_header.client_id, len(encrypted_file_data), len(file_name), checksum)
+            self.response.code = RECEIVED_FILE_SUCCESS_CODE
 
 
     def handle_register_request(self,) -> None:

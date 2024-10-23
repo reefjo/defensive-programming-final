@@ -68,9 +68,10 @@ void RequestsHandler::send_file(std::string file_name,  const std::string aes_ke
 	uint16_t current_packet = 0;
 	const uint16_t total_packets = (encrypted_data_size + BUFFER_SIZE - 1) / BUFFER_SIZE;
 	// 5. create a header and packet,
-	for (uint16_t packet_num = 0; packet_num < total_packets; ++packet_num) {
+
+	for (uint16_t packet_num = 1; packet_num <= total_packets; ++packet_num) {
 		// Calculate the offset and the size of the current chunk
-		uint32_t offset = packet_num * BUFFER_SIZE;
+		uint32_t offset = (packet_num - 1)* BUFFER_SIZE;
 		uint32_t chunk_size = std::min(static_cast<uint32_t>(BUFFER_SIZE), encrypted_data_size - offset);
 
 		// Extract the chunk from the encrypted data
@@ -90,9 +91,8 @@ void RequestsHandler::send_file(std::string file_name,  const std::string aes_ke
 
 		// 7. Send the packet over the network
 		boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
-		std::cout << "Serialized  encrypted file data sent to server!\n";
+		std::cout << "Serialized  encrypted file data sent to server, total size: " << serialized_data.size() << std::endl;
 	}
-
 
 }
 std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key) {
