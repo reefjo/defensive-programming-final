@@ -12,13 +12,17 @@
 #include <algorithm>    // For utility functions like std::min
 #include <optional>
 #include <iomanip>  // For formatting outputs (debugging)
+#include "FileHandler.h"
+#include "Endianness.h"
+#include "cksum.h"
+
 
 // Class to handle all client requests (e.g., registration, login, file transfer).
 // Manages communication with the server, request sending, and response processing.
 class RequestsHandler {
 private:
-    boost::asio::io_context io_context;  // I/O context for Asio networking
-    boost::asio::ip::tcp::resolver resolver;  // Resolver to resolve IP and port
+    boost::asio::io_context io_context;  
+    boost::asio::ip::tcp::resolver resolver;  
     boost::asio::ip::tcp::socket socket;  // Socket to communicate with the server
     std::string client_id;  
     std::string client_name;  

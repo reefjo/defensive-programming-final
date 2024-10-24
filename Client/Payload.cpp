@@ -3,6 +3,8 @@
 RegisterPayload::RegisterPayload(const std::string client_name)
 	: client_name(client_name){}
 
+
+// Serializes the client_name into a vector of bytes
 std::vector<uint8_t> RegisterPayload::serialize () const{
 	std::vector<uint8_t> res;
 	for (char c : this->client_name) {
@@ -12,9 +14,11 @@ std::vector<uint8_t> RegisterPayload::serialize () const{
 
 }
 
+
 SendKeyPayload::SendKeyPayload(const std::string client_name, const std::string public_key)
 	:client_name(client_name), public_key(public_key){}
 
+// Serializes the client_name and public_key into a vector of bytes
 std::vector<uint8_t> SendKeyPayload::serialize() const {
 	std::vector<uint8_t> res;
 	for (char c : this->client_name) {
@@ -32,8 +36,12 @@ SendFilePayload::SendFilePayload(uint32_t file_size, uint32_t orig_file_size, ui
 	:file_size(file_size), orig_file_size(orig_file_size), packet_number(packet_number),
 	total_packets(total_packets), file_name(file_name), data(data){}
 
+
+// Serializes the file-related information into a vector of bytes
 std::vector<uint8_t> SendFilePayload::serialize() const {
 	std::vector<uint8_t> res;
+
+	// Serialize file_size (in little-endian format)
 	uint32_t file_size_le = Endianness::to_little_endian(this->file_size);
 	uint32_t orig_file_size_le = Endianness::to_little_endian(this->orig_file_size);
 	uint16_t packet_number_le = Endianness::to_little_endian(this->packet_number);

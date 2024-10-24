@@ -1,7 +1,4 @@
 #include "RequestsHandler.h"
-#include "FileHandler.h"
-#include "Endianness.h"
-#include "cksum.h"
 
 
 // Initializes the RequestHandler with client data and connects to the server.
@@ -9,7 +6,7 @@ RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cve
 	: client_id(cid), resolver(io_context), socket(io_context), client_name(cname), client_version(cversion) {
 
 	// Ensure the client name is exactly CLIENT_NAME_SIZE characters, padded with null characters if necessary.
-	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); 
+	this->client_name.resize(CLIENT_NAME_SIZE, '\0');
 
 	// Read server IP and port from the transfer file.
 	auto [server_ip, server_port, _, file_path] = read_transfer_file();
@@ -43,7 +40,7 @@ std::optional<std::string> RequestsHandler::login_and_get_aes(std::string privat
 		}
 
 	}
-	std::cout << "Failed to login for " << NUM_OF_TRIALS << " Times." << std::endl;
+	std::cout << "Failed to login for " << std::to_string(NUM_OF_TRIALS) << " Times." << std::endl;
 	return std::nullopt;  // failed to login multiple times
 }
 
@@ -78,7 +75,7 @@ std::string RequestsHandler::register_and_get_id() {
 		send_authenticate_request(REGISTER_REQUEST_CODE);
 		std::optional<std::string> id = get_register_response_id();
 		if (id) {
-			std::cout << "Successfully received id: " << id.value() << std::endl;
+			std::cout << "Successfully received id from server " << std::endl;
 			return id.value();
 		}
 	}
@@ -88,7 +85,7 @@ std::string RequestsHandler::register_and_get_id() {
 
 // Retrieves the registration response (client ID) from the server if successful, otherwise returns nullopt
 std::optional<std::string> RequestsHandler::get_register_response_id() {
-	
+
 
 	ResponseHeader header = unpack_response_header();
 	std::cout << "Received server version: " << static_cast<uint32_t>(header.get_server_version()) << ", Response code: "
@@ -298,6 +295,8 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 	// Decrypt the AES key using the client's private RSA key
 	RSAPrivateWrapper rsa_private(private_rsa_key);
 	std::string decrypted_aes_key = rsa_private.decrypt(encrypted_key);
+
+	std::cout << "Successfuly received the encrypted key from server, and decrypted it.\n";
 
 	return decrypted_aes_key;  // Return the decrypted AES key
 

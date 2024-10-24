@@ -1,38 +1,48 @@
 #ifndef PAYLOAD_H
 #define PAYLOAD_H
+
+
 #include <vector>
 #include <string>
 #include "Endianness.h"
+
+
+// Abstract base class representing a payload in a network message
 class Payload {
 public:
 	virtual ~Payload() = default;
-	// Each payload subclass must implement this method to serialize its contents
+
+	// Serializes the payload content into a byte array
 	virtual std::vector<uint8_t> serialize() const = 0;
 };
 
 
 
+// Represents the payload for a client registration request
 class RegisterPayload : public Payload {
 private:
-	std::string client_name;  // should be size 255
+	std::string client_name;  
 public:
-	//constructor
 	RegisterPayload(const std::string);
-	std::vector<uint8_t> serialize() const override;
-	// no need getters & setters i think
 
+	// Serializes the client_name into a byte array
+	std::vector<uint8_t> serialize() const override;
 };
 
+// Represents the payload for sending a public key to the server
 class SendKeyPayload : public Payload {
 private:
 	std::string client_name;
 	std::string public_key;
 public:
 	SendKeyPayload(const std::string, const std::string);
-	std::vector<uint8_t> serialize() const override;
-	
 
+	// Serializes the client_name and public_key into a byte array
+	std::vector<uint8_t> serialize() const override;
 };
+
+
+// Represents the payload for sending an encrypted file to the server
 class SendFilePayload : public Payload {
 private:
 	uint32_t file_size;  // file size  AFTER encryption
@@ -43,6 +53,8 @@ private:
 	std::string data;  // the acutal data sent
 public:
 	SendFilePayload(uint32_t, uint32_t, uint16_t, uint16_t, std::string, std::string);
+
+	// Serializes the file-related data into a byte array
 	std::vector<uint8_t> serialize() const override;
 
 };
