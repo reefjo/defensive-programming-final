@@ -52,3 +52,4 @@ FILE_PAYLOAD_SIZE_WITHOUT_DATA = (
 )
 # Server constants
 SERVER_VERSION = 3
+CLIENT_FOLDERS_NAME = "client_folders"

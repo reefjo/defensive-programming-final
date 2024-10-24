@@ -1,9 +1,11 @@
+import os
 import socket
 import struct
 
 
 from cksum import memcrc
 from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
+from datetime import datetime
 
 from request import RequestHeader
 from protocol_constants import (
@@ -12,7 +14,7 @@ from protocol_constants import (
     AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_FORMAT,
     FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE, INVALID_CRC_CODE, VALID_CRC_CODE,
     INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE, LOGIN_CODE, LOGIN_FAIL_CODE,
-    LOGIN_SUCCESS_CODE, REQUEST_HEADER_SIZE, REQUEST_HEADER_FORMAT,
+    LOGIN_SUCCESS_CODE, REQUEST_HEADER_SIZE, REQUEST_HEADER_FORMAT, CLIENT_FOLDERS_NAME,
 )
 from database import Database
 from response import Response
@@ -32,6 +34,8 @@ class RequestHandler:
         try:
             self.parse_request_header()
             print("Request received from client")
+            info = self.db.get_client_info(self.request_header.client_id)
+            print(f"Client info: {info}")
             # if an error has occurred, put general code fail
 
             code = self.request_header.code
@@ -48,11 +52,15 @@ class RequestHandler:
             else:
                 raise Exception("Unknown request code")
 
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Format current time
+            self.db.update_last_seen(self.request_header.client_id, current_time)
+
             if self.request_header.code != SEND_FILE_CODE or self.response.payload:
                 # Server sends a response in either condition:
                 # 1. It's not a send file request
                 # 2. It's a send file request, and we just received the last package (thus payload is not None)
                 self.response.send_response(self.conn)
+
         except ConnectionError as e:
             # Handle the case where the client has disconnected
             print("Client disconnected")
@@ -86,36 +94,57 @@ class RequestHandler:
             f" payload_size={self.request_header.payload_size}")
 
     def handle_register_request(self,) -> None:
+        # A client is considered "registered" if: registered before AND exchanged keys.
+        # Otherwise, if client registered but didn't exchange keys, he won't be able to login or register.
+
         print("Starting the handle register request function")
         client_name = self.get_data(CLIENT_NAME_SIZE)
+        print(f"{client_name = }")
+        public = self.db.get_aes_key(self.request_header.client_id)
+        if public:
+            print("This id is already registered and exchanged keys!")
+            self.response.code = REGISTER_FAILED_CODE
+            return
 
-        print(f"trying to register with {client_name = }")
+        # Generate new id, and put it inside database for this client
+        self.request_header.client_id = uuid.uuid4().bytes
 
-        #if self.db.contains_name(client_name):
-         #   print(f"Database already contains this {client_name = }.")
-        #  self.response.code = REGISTER_FAILED_CODE
-        if self.db.contains_name(client_name):
-            print("This client name is already in database... continuing anyways.")
-        client_id_bytes = uuid.uuid4().bytes
-        self.db.insert_into_clients(client_id_bytes,client_name, None, None, None)
-        print(f"Register successful! Created client id: {client_id_bytes}")
-        self.response.payload = client_id_bytes
+        self.db.insert_into_clients(self.request_header.client_id, client_name)
+        print(f"Register successful! id =  {self.request_header.client_id}")
+        client_folder_path = self.get_client_folder()
+        # Create a folder for that client's files using the client_id
+        os.makedirs(client_folder_path, exist_ok=True)  # Create the folder if it doesn't exist
+        print(f"Created folder for client: {self.request_header.client_id}")  # Log the folder creation
+
+        self.response.payload = self.request_header.client_id
         self.response.code = REGISTER_SUCCESS_CODE
-
 
 
     def handle_login_request(self):
         # if client is in hash set of clients , accept. otherwise, send fail
         client_name = self.get_data(CLIENT_NAME_SIZE)
-
+        '''
         if self.request_header.client_id not in self.id_to_aes_key:
             print(f"Failed to login because {client_name} is not registered ")
             self.response.code = LOGIN_FAIL_CODE
             return
+        '''
+        # Database part
+        public_key = self.db.get_public_key(self.request_header.client_id)
+        if not public_key:
+            # This client never exchanged keys : login failed
+            print("This client never exchanged keys! can't login")
+            self.response.code = LOGIN_FAIL_CODE
+            return
 
+        # Generate key and store in database
+        aes_key = self.generate_and_store_aes_key()
+
+        self.load_encrypted_key_and_id(public_key, aes_key)
+
+        print("Encrypted key sent to client, and stored id->aes_key.")
         print(f"Client login successfully: {client_name}")
-        public_key = self.id_to_public_key[self.request_header.client_id]
-        self.load_encrypted_key_and_id(public_key)
+
         self.response.code = LOGIN_SUCCESS_CODE
 
     def handle_crc_codes(self):
@@ -139,20 +168,26 @@ class RequestHandler:
         print(f"Client public key received: {public_key}")
         print("Thank you for sending me the key! storing it ...")
 
-        self.id_to_public_key[self.request_header.client_id] = public_key
+        #self.id_to_public_key[self.request_header.client_id] = public_key
+        # Load public key into the database
+        self.db.update_public_key(self.request_header.client_id, public_key)
 
         # update response code and payload as successful handling, and send new aes key
-        self.load_encrypted_key_and_id(public_key)
+        aes_key = self.generate_and_store_aes_key()
+
+        self.load_encrypted_key_and_id(public_key, aes_key)
         self.response.code = RECEIVED_KEY_SUCCESS_CODE
         print("Encrypted key sent to client, and stored id->aes_key.")
 
-    def load_encrypted_key_and_id(self, public_key):  # useful for server responses: 1602 and 1605
-
-        # Generate AES key
+    def generate_and_store_aes_key(self):
         aes_key = generate_aes_key()
+        self.db.update_aes_key(self.request_header.client_id, aes_key)
+        return aes_key
+
+    def load_encrypted_key_and_id(self, public_key, aes_key ):  # useful for server responses: 1602 and 1605
 
         # Assign the key to this id
-        self.id_to_aes_key[self.request_header.client_id] = aes_key
+        #self.id_to_aes_key[self.request_header.client_id] = aes_key
 
         encrypted_aes_key = encrypt_aes_key(aes_key, public_key)
         print(f"{encrypted_aes_key = }")
@@ -163,9 +198,10 @@ class RequestHandler:
 
     def handle_send_file_request(self):
         # store the encrypted data. in the end(last packet), take encrypted data out and put the decrypted data
-
-        if self.request_header.client_id not in self.id_to_aes_key:
-            raise Exception("Client has not registered, client id not found")
+        aes_key = self.db.get_aes_key(self.request_header.client_id)
+        print(f"aes key = {aes_key}")
+        #if self.request_header.client_id not in self.id_to_aes_key:
+         #   raise Exception("Client has not registered, client id not found")
 
         data = self.conn.recv(self.request_header.payload_size)
         file_data_len = self.request_header.payload_size - FILE_PAYLOAD_SIZE_WITHOUT_DATA
@@ -181,21 +217,25 @@ class RequestHandler:
 
         file_name_stripped = file_name.rstrip(b'\x00').decode('utf-8')
 
+        client_folder_path = self.get_client_folder()
+        file_path = os.path.join(client_folder_path, file_name_stripped)
+
         mode = "wb" if packet_number == 1 else "ab"
-        with open(file_name_stripped, mode) as f:
+        with open(file_path, mode) as f:
             f.write(encrypted_data)
-        if packet_number == total_packets:  # it was the last packet
+
+        if packet_number == total_packets:  # it was the last packet, decrypt it
             encrypted_file_data = ""
-            with open(file_name_stripped, 'rb') as f:
+            with open(file_path, 'rb') as f:
                 encrypted_file_data = f.read()
-            aes_key = self.id_to_aes_key[self.request_header.client_id]
+
 
             decrypted_data = decrypt_aes_data(encrypted_file_data, aes_key)
             checksum = memcrc(decrypted_data)
             # Remove padding - use the original file size as reference
 
             # Write decrypted data to file
-            with open(file_name_stripped, 'wb') as f:  # open this file again and write the decrypted data
+            with open(file_path, 'wb') as f:  # open this file again and write the decrypted data
                 f.write(decrypted_data)
 
             print(f"Successfully decrypted and wrote file: {file_name_stripped}")
@@ -216,4 +256,9 @@ class RequestHandler:
         if not data:  # client disconnected
             raise ConnectionError(f"Couldn't fetch data : client disconnected, expected {size} bytes")
         return data
+
+    def get_client_folder(self) -> str:
+        # Constructs the path to the client's dedicated folder
+        client_folder = os.path.join(str(CLIENT_FOLDERS_NAME), self.request_header.client_id.hex())
+        return client_folder
 

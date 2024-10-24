@@ -150,6 +150,7 @@ std::string Client::generate_keys(){
 void Client::start() {
 // send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 	load_stored_credentials();
+	std::cout << "Client id after loading: " << this->client_id << std::endl;
 	if (not attempt_login()) {
 		std::cout << "Login failed, attempting to register...\n";
 		if (not attempt_register())
