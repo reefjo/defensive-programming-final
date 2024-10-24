@@ -22,7 +22,6 @@ def test_database():
     another_aes_key = b'someaeskey12345678901234569999'
 
     #db.insert_into_clients(client_id, client_name, client_public_key, client_last_seen, client_aes_key)
-    rows = db.get
 
 
 
@@ -39,5 +38,5 @@ def main():
     server.run()
 
 if __name__ == '__main__':
-     #main()
-     test_database()
+     main()
+     #test_database()

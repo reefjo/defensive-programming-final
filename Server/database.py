@@ -36,8 +36,8 @@ class Database:
     def create_tables(self):
         # Create a cursor object to execute SQL commands
         cursor = self.conn.cursor()
-        # cursor.execute(DROP_CLIENTS_QUERY)
-        # cursor.execute(DROP_FILES_QUERY)
+        cursor.execute(DROP_CLIENTS_QUERY)
+        cursor.execute(DROP_FILES_QUERY)
         cursor.execute(CREATE_CLIENTS_QUERY)
         cursor.execute(CREATE_FILES_QUERY)
         self.conn.commit()
