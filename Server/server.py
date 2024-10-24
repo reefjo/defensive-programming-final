@@ -24,16 +24,16 @@ class Server:
 
     def handle_client(self, connection):
         request_handler = RequestHandler(connection, self.database, self.id_to_aes_key, self.id_to_public_key)
-        print("Created a request handler")
+        #print("Created a request handler")
         try:
             request_handler.handle_request()
-        except (ConnectionResetError, ConnectionAbortedError, ConnectionError)  as e:
-            print(e)
-            self.selector.unregister(connection)
-            connection.close()
+            print("Request handled successfully")
+        except ConnectionError:
+            #print("Client disconnected, didn't handle")
+            self.cleanup_connection(connection)
         except Exception as e:
-            print(f"Some error occurred: {e}")
-
+            print(f"error handling client: {str(e)}")
+            self.cleanup_connection(connection)
 
     def run(self):
         # Set up the server socket
@@ -60,4 +60,7 @@ class Server:
             self.selector.close()
             server_socket.close()
 
-
+    def cleanup_connection(self, connection):
+        self.selector.unregister(connection)
+        connection.close()
+        print("Connection cleaned up")

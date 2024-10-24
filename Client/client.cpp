@@ -105,28 +105,6 @@ void Client::load_stored_credentials() {
 	}
 }
 
-
-
-
-std::string Client::generate_keys(){
-	// Generates public&priavte keys. stores private key in object and returns public key
-	RSAPrivateWrapper rsa_private;
-	this->private_rsa_key = rsa_private.getPrivateKey();  // Store private key for later use
-	return rsa_private.getPublicKey();  // Return public key for sending to server
-}
-
-void Client::start() {
-// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
-	load_stored_credentials();
-	if (not attempt_login()) {
-		std::cout << "Login failed, attempting to register...\n";
-		if (not attempt_register())
-			throw std::runtime_error("Failed to login and register. can't proceed\n");
-	}
-	 
-	this->requests_handler.handle_send_file(TEST_FILE_NAME, this->aes_key);
-
-}
 bool Client::attempt_register() {
 	try {
 		std::optional<std::string> id = this->requests_handler.register_and_get_id();
@@ -155,8 +133,31 @@ bool Client::attempt_login() {
 		return true;
 	}
 	return false;
-	
 
+
+
+}
+
+
+
+std::string Client::generate_keys(){
+	// Generates public&priavte keys. stores private key in object and returns public key
+	RSAPrivateWrapper rsa_private;
+	this->private_rsa_key = rsa_private.getPrivateKey();  // Store private key for later use
+	return rsa_private.getPublicKey();  // Return public key for sending to server
+}
+
+void Client::start() {
+// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
+	load_stored_credentials();
+	if (not attempt_login()) {
+		std::cout << "Login failed, attempting to register...\n";
+		if (not attempt_register())
+			throw std::runtime_error("Failed to login and register. can't proceed\n");
+	}
+	 
+	this->requests_handler.handle_send_file(TEST_FILE_NAME, this->aes_key);
+	this->requests_handler.close_connection();
 
 }
 

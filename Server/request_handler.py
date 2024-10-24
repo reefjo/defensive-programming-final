@@ -8,11 +8,11 @@ from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
 from request import RequestHeader
 from protocol_constants import (
     REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
-    REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_STRUCTURE, SEND_KEY_PAYLOAD_SIZE,
-    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_STRUCTURE,
+    REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_FORMAT, SEND_KEY_PAYLOAD_SIZE,
+    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_FORMAT,
     FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE, INVALID_CRC_CODE, VALID_CRC_CODE,
     INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE, LOGIN_CODE, LOGIN_FAIL_CODE,
-    LOGIN_SUCCESS_CODE
+    LOGIN_SUCCESS_CODE, REQUEST_HEADER_SIZE, REQUEST_HEADER_FORMAT,
 )
 from database import Database
 from response import Response
@@ -29,10 +29,11 @@ class RequestHandler:
         self.id_to_public_key = id_to_public_key
 
     def handle_request(self):
-        self.request_header.parse_from_socket(self.conn)
-        print("Request received from client")
-        # if an error has occured, put general code fail
         try:
+            self.parse_request_header()
+            print("Request received from client")
+            # if an error has occurred, put general code fail
+
             code = self.request_header.code
             if code == REGISTER_CODE:
                 self.handle_register_request()
@@ -44,53 +45,80 @@ class RequestHandler:
                 self.handle_crc_codes()
             elif code == LOGIN_CODE:
                 self.handle_login_request()
-
             else:
                 raise Exception("Unknown request code")
+
+            if self.request_header.code != SEND_FILE_CODE or self.response.payload:
+                # Server sends a response in either condition:
+                # 1. It's not a send file request
+                # 2. It's a send file request, and we just received the last package (thus payload is not None)
+                self.response.send_response(self.conn)
+        except ConnectionError as e:
+            # Handle the case where the client has disconnected
+            print("Client disconnected")
+            raise e  # Reraise to allow the server to handle this
+
         except Exception as e:
             print(f"Error handling request: {str(e)}")
-            self.response.code = GENERAL_FAIL_CODE  # Some general error has occured
-        finally:
-            if self.request_header.code != SEND_FILE_CODE or self.response.payload:
-                # Send back a response if:
-                # 1: its not a send file request  2: It's a response to last packet received in send file request
-                self.response.send_response(self.conn)
-                print(f"Sent the response (not send file request) after parsing request")
+            # If an error occurs, set the response code to GENERAL_FAIL_CODE
+            self.response.code = GENERAL_FAIL_CODE
+            self.response.payload = b''  # Clear payload in case of failure
+            self.response.send_response(self.conn)
+            raise e  # re raise the exception to handle it in server
+
+
+
+    def parse_request_header(self):
+        # Read the entire header in one go using struct
+
+        data = self.get_data(REQUEST_HEADER_SIZE)
+
+        if len(data) < REQUEST_HEADER_SIZE:
+            raise ConnectionError(f"Insufficient data received from client (less than expected): {data = }")
+
+        # Unpack header data using struct
+        (self.request_header.client_id, self.request_header.client_version, self.request_header.code,
+         self.request_header.payload_size) = struct.unpack(REQUEST_HEADER_FORMAT, data)
+
+        print(
+            f"Parsed from client: client_id={self.request_header.client_id},"
+            f" client_version={self.request_header.client_version}, code={self.request_header.code},"
+            f" payload_size={self.request_header.payload_size}")
 
     def handle_login_request(self):
         # if client is in hash set of clients , accept. otherwise, send fail
-        client_name = self.conn.recv(CLIENT_NAME_SIZE)
-        if not client_name:
-            raise ConnectionError("Client didn't send his name.")
+        client_name = self.get_data(CLIENT_NAME_SIZE)
+
         if self.request_header.client_id not in self.id_to_aes_key:
-            print(f"Failed to login {client_name} because he's not registered ")
+            print(f"Failed to login because {client_name} is not registered ")
             self.response.code = LOGIN_FAIL_CODE
             return
-        print(f"Client {client_name} login successfully!")
+
+        print(f"Client login successfully: {client_name}")
         public_key = self.id_to_public_key[self.request_header.client_id]
         self.load_encrypted_key_and_id(public_key)
         self.response.code = LOGIN_SUCCESS_CODE
 
     def handle_crc_codes(self):
-        # send back acknowledgement + client id
-        # get the client name from payload
-        data = self.conn.recv(FILE_NAME_SIZE)
-        if not data:
-            raise ConnectionError("Client didn't send payload")
-        if len(data) < FILE_NAME_SIZE:
-            raise Exception(f"File name size is less than expected: {data = }")
+        # payload should be: client name (although we don't use it)
+        self.validate_payload_size(CLIENT_NAME_SIZE)
+        data = self.get_data(CLIENT_NAME_SIZE)  # fetch data from socket, don't use it
+
+        # send back acknowledgement code + client id
         self.response.payload = struct.pack('<%ds' % CLIENT_ID_SIZE, self.request_header.client_id)
+
         self.response.code = SERVER_ACK_CODE  # Acknowledge we received the request
-        print("sending ack to client")
+        print("sending ack back to client")
 
     def handle_send_key_request(self):
         # Receives the public key of the client and saves it, then saves the encrypted key back
+
         data = self.conn.recv(self.request_header.payload_size)
-        client_name, public_key = struct.unpack(SEND_KEY_REQUEST_STRUCTURE, data)
+        client_name, public_key = struct.unpack(SEND_KEY_REQUEST_FORMAT, data)
         print(f"{len(client_name) = }, {len(public_key) = }")
         print(f"Client name received : {client_name}")
         print(f"Client public key received: {public_key}")
-        print("Thank you for sending me the key! storing it ...(notreally)")
+        print("Thank you for sending me the key! storing it ...")
 
         self.id_to_public_key[self.request_header.client_id] = public_key
 
@@ -107,11 +135,10 @@ class RequestHandler:
         # Assign the key to this id
         self.id_to_aes_key[self.request_header.client_id] = aes_key
 
-
         encrypted_aes_key = encrypt_aes_key(aes_key, public_key)
         print(f"{encrypted_aes_key = }")
 
-        # Dynamically pack
+
         client_id = self.request_header.client_id
         self.response.payload = struct.pack('<%ds%ds' % (len(client_id), len(encrypted_aes_key)), client_id, encrypted_aes_key)
 
@@ -123,7 +150,7 @@ class RequestHandler:
 
         data = self.conn.recv(self.request_header.payload_size)
         file_data_len = self.request_header.payload_size - FILE_PAYLOAD_SIZE_WITHOUT_DATA
-        structure_with_data = SEND_FILE_REQUEST_STRUCTURE + f"{file_data_len}s"
+        structure_with_data = SEND_FILE_REQUEST_FORMAT + f"{file_data_len}s"
 
 
         content_size, orig_file_size, packet_number, total_packets, file_name, encrypted_data = struct.unpack(
@@ -154,6 +181,8 @@ class RequestHandler:
 
             print(f"Successfully decrypted and wrote file: {file_name_stripped}")
             print(f"{checksum = }")
+
+            # Dynamically build the format (since file length is changing)
             self.response.payload = struct.pack('<%dsI%dsI' % (len(self.request_header.client_id), len(file_name)),
                                                 self.request_header.client_id, len(encrypted_file_data), file_name, checksum)
             self.response.code = RECEIVED_FILE_SUCCESS_CODE
@@ -161,9 +190,8 @@ class RequestHandler:
 
     def handle_register_request(self,) -> None:
         print("Starting the handle register request function")
-        client_name = self.conn.recv(CLIENT_NAME_SIZE)
-        if not client_name:
-            raise ConnectionError("Client didn't send his name.")
+        client_name = self.get_data(CLIENT_NAME_SIZE)
+
         print(f"trying to register with {client_name = }")
 
         if self.db.contains_name(client_name):
@@ -171,30 +199,17 @@ class RequestHandler:
             self.response.code = REGISTER_FAILED_CODE
         else:
             client_id_bytes = uuid.uuid4().bytes
-            print(f"Created client id: {client_id_bytes}")
+            print(f"Register successful! Created client id: {client_id_bytes}")
             self.response.payload = client_id_bytes
             self.response.code = REGISTER_SUCCESS_CODE
 
-    def receive_file(self, file_name: str, request):
-        received = 0
+    def validate_payload_size(self, expected_size):
+        if self.request_header.payload_size != expected_size:
+            raise ValueError(f"Invalid payload size. Expected {expected_size} bytes but got {self.request_header.payload_size} bytes")
 
-        with open(file_name, 'wb') as f:
-            while received < request.payload_size:
-                next_chunk_size = min(BUFFER_SIZE, request.payload_size - received)
-                print(f"next chunk size: {next_chunk_size}")
-                data = self.conn.recv(next_chunk_size)
-                print(f"We received data of size:{len(data)}.\n the data is: {data}")
-                f.write(data)
-                received += next_chunk_size
-        print(f"File '{file_name}' received successfully!")
+    def get_data(self, size):
+        data = self.conn.recv(size)
+        if not data:  # client disconnected
+            raise ConnectionError(f"Couldn't fetch data : client disconnected, expected {size} bytes")
+        return data
 
-    def send_file(self, file_name):
-        with open(file_name, 'rb') as f:
-            while True:
-                data = f.read(BUFFER_SIZE)
-                print(f"We send data of size:{len(data)}.\n the data is: {data}")
-                if not data:
-                    break
-                self.conn.sendall(data)
-        self.conn.sendall(b'EOF')
-        print(f"File '{file_name}' sent successfully!")

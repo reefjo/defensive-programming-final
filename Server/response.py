@@ -1,4 +1,4 @@
-from protocol_constants import SERVER_VERSION, CODE_SIZE, PAYLOAD_SIZE, SERVER_VERSION_SIZE
+from protocol_constants import CODE_SIZE, PAYLOAD_SIZE, SERVER_VERSION_SIZE, SERVER_VERSION
 
 import socket
 
@@ -10,10 +10,11 @@ class Response:
         self.payload = b""
 
     def send_response(self, conn) -> None:
-        print(f"Trying to send response:")
+        print("Trying to send response back to client...")
         response_message = self._construct_response_message()
         conn.sendall(response_message)
         print(f"Response sent to client\npayload: {self.payload}")
+
 
 
     def _construct_response_message(self):

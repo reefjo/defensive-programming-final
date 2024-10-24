@@ -47,6 +47,7 @@ public:
 	std::optional<std::string> login_and_get_aes(std::string private_rsa_key);
 	std::string register_and_get_id();
 	void set_id(std::string);
+	void close_connection();
 
 
 

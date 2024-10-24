@@ -38,6 +38,7 @@ std::optional<std::string> RequestsHandler::login_and_get_aes(std::string privat
 		}
 
 	}
+	std::cout << "Failed to login for " << NUM_OF_TRIALS << " Times." << std::endl;
 	return std::nullopt;  // failed to login multiple times
 }
 
@@ -363,4 +364,25 @@ uint16_t RequestsHandler::get_uint16_from_vec(const std::vector<uint8_t>& vec, u
 }
 void RequestsHandler::set_id(std::string id) {
 	this->client_id = id;
+}
+void RequestsHandler::close_connection() {
+	if (this->socket.is_open()) {
+		boost::system::error_code ec;
+
+		// First, shut down the socket properly
+		socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+		if (ec && ec != boost::asio::error::not_connected) {
+			// Log the error but continue with cleanup
+			std::cerr << "Socket shutdown error: " << ec.message() << std::endl;
+		}
+
+		// Then close the socket
+		socket.close(ec);
+		if (ec) {
+			std::cerr << "Socket close error: " << ec.message() << std::endl;
+		}
+		else {
+			std::cout << "Socket closed successfully\n";
+		}
+	}
 }
