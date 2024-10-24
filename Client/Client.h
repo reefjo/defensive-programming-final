@@ -6,6 +6,12 @@
 #include <optional> //  for std::optional, if i will choose to use it (delete this line if not!)
 #include "Protocol.h"
 #include "Base64Wrapper.h"
+#include <iostream>
+#include <fstream> 
+#include <string>    // for std::string, std::getline, std::stoi
+#include <boost/asio.hpp>
+#include "FileHandler.h"
+#include "Client.h"
 
 const uint8_t CLIENT_VERSION = 3;
 
@@ -18,13 +24,10 @@ private:
 	std::string file_path;
 	RequestsHandler requests_handler;
 	bool registered;
-	bool exchanged = false;
 
 	// Private constructor that takes the necessary parameters
 	Client(std::tuple<std::string, std::string, std::string, std::string>, std::string);
 
-	//void read_transfer_and_connect();
-	void authenticate();
 	void load_stored_credentials();
 	std::string generate_keys ();
 	bool attempt_login();

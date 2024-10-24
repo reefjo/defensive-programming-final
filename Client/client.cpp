@@ -6,46 +6,32 @@
 #include "Client.h"
 
 
+// Public constructor: Initializes the client by reading server details and the client's info from transfer file.
 
-
-
-
-// Public constructor: handles file reading and then delegates to the private constructor
 Client::Client()
 	: Client(read_transfer_file(), DEFAULT_ID) {}  // Delegates to private constructor
 
-// Private constructor: fully initializes the requests_handler after reading the file
 
-Client::Client(std::tuple<std::string, std::string, std::string, std::string> t, std::string client_id )
+
+// Private constructor: Initializes the Client object with server details and prepares the RequestsHandler.
+// Parameters: 
+// - t: Tuple containing server info (IP, port, client name, file path).
+// - client_id: The client's unique identifier (loaded from file or generated).
+Client::Client(std::tuple<std::string, std::string, std::string, std::string> t, std::string client_id)
 	: client_name(std::get<2>(t)),
 	file_path(std::get<3>(t)),
 	client_id(client_id),
 	requests_handler(client_id, client_name, CLIENT_VERSION) {
 
-	std::cout << "Client constructor, before creating RequestsHandler. client_id: '" << client_id
-		<< "', client_name: '" << client_name << "'" << std::endl;
-
-
-
 	// Initialize client_name to a size of 255
 	this->client_name.resize(CLIENT_NAME_SIZE, '\0'); // Resize and fill with null characters (regardless if registered)
 
-	//load_stored_credentials();
-
-	std::cout << "Client initialized , along with requests handler." << std::endl;
-	std::cout << "Client name for client:" << client_name << ", length: " << this->client_name.length() << 
-		"file path:" << file_path << " registered: " <<registered << std::endl;
-	std::cout << "Client id end of constructoer: " << this->client_id << std::endl;
-
-	/*
-	if (this->registered)
-		std::cout << "Client is already registered." << std::endl; 
-		*/
-
-
 }
 
-std::string Client:: hex_to_binary(const std::string& hex_str) {
+
+// Converts a hexadecimal string to a binary string.
+// Each 2 hex characters represent 1 byte.
+std::string Client::hex_to_binary(const std::string& hex_str) {
 	// should be in FileHandler, if i have time - i will move it
 	std::string binary;
 	binary.reserve(hex_str.length() / 2);  // Each 2 hex chars represents 1 byte
@@ -58,6 +44,11 @@ std::string Client:: hex_to_binary(const std::string& hex_str) {
 
 	return binary;
 }
+
+
+// Loads stored credentials from a file (me.info).
+// If the file is found, it retrieves the client's name, ID, and private key.
+// If no file is found or the contents are invalid, it skips the loading process.
 void Client::load_stored_credentials() {
 
 	// try to open me.info file and try to fetch the stored information
@@ -80,9 +71,10 @@ void Client::load_stored_credentials() {
 		return;
 	}
 
+
 	// Read the rest of the file as the key
 	std::stringstream key_stream;
-	key_stream << file.rdbuf();  // Read all remaining content
+	key_stream << file.rdbuf();  // read all remaining content
 	std::string encoded_key = key_stream.str();
 
 	file.close();
@@ -105,6 +97,10 @@ void Client::load_stored_credentials() {
 	}
 }
 
+
+// Attempts to register the client with the server.
+// If successful, it generates keys, sends the public key to the server, and retrieves the AES key.
+// Returns true if registration succeeds, false otherwise.
 bool Client::attempt_register() {
 	try {
 		std::optional<std::string> id = this->requests_handler.register_and_get_id();
@@ -124,9 +120,14 @@ bool Client::attempt_register() {
 		return false;  // Registration failed
 	}
 }
+
+
+// Attempts to log in using stored credentials.
+// If login succeeds, retrieves the AES key from the server.
+// Returns true if login succeeds, false otherwise.
 bool Client::attempt_login() {
 	if (not this->registered)
-		return false; // no reason to attempt login if user never registered..
+		return false; // no reason to attempt login if user not registered
 	std::optional<std::string> res = this->requests_handler.login_and_get_aes(this->private_rsa_key);
 	if (res) { // login succeed, got aes key
 		this->aes_key = res.value();
@@ -134,21 +135,24 @@ bool Client::attempt_login() {
 	}
 	return false;
 
-
-
 }
 
 
-
-std::string Client::generate_keys(){
+// Generates an RSA key pair and stores the private key internally.
+// Returns the public key for sending to the server.
+std::string Client::generate_keys() {
 	// Generates public&priavte keys. stores private key in object and returns public key
 	RSAPrivateWrapper rsa_private;
-	this->private_rsa_key = rsa_private.getPrivateKey();  // Store private key for later use
+	this->private_rsa_key = rsa_private.getPrivateKey();
 	return rsa_private.getPublicKey();  // Return public key for sending to server
 }
 
+
+// Starts the client workflow: loads credentials, attempts login, and handles file transfer.
+// If login fails, it attempts to register the client.
+// Sends the encrypted file to the server and then closes the connection.
 void Client::start() {
-// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
+	// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 	load_stored_credentials();
 	std::cout << "Client id after loading: " << this->client_id << std::endl;
 	if (not attempt_login()) {
@@ -156,23 +160,10 @@ void Client::start() {
 		if (not attempt_register())
 			throw std::runtime_error("Failed to login and register. can't proceed\n");
 	}
-	 
-	this->requests_handler.handle_send_file(TEST_FILE_NAME, this->aes_key);
+
+	this->requests_handler.handle_send_file(this->file_path, this->aes_key);
 	this->requests_handler.close_connection();
 
 }
 
 
-
-
-
-	int main2() {
-		// test_messages();
-		//test_sending();
-
-
-
-
-
-		return 0;
-	}
