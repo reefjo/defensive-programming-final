@@ -23,30 +23,32 @@ CREATE_FILES_QUERY = '''
 GET_CLIENTS_QUERY = '''
         select * from clients
 '''
+
+# SQL queries to drop the tables if they already exist (good for debugging)
 DROP_CLIENTS_QUERY = "DROP TABLE IF EXISTS clients"
 DROP_FILES_QUERY = "DROP TABLE IF EXISTS files"
 
 
 class Database:
+    # Initializes the database connection and ensures tables are created.
     def __init__(self):
         self.db_name = DATABASE_NAME
         self.conn = sqlite3.connect(DATABASE_NAME)
         self.create_tables()
 
+    # Creates the 'clients' and 'files' tables in the database if they don't exist.
     def create_tables(self):
-        # Create a cursor object to execute SQL commands
         cursor = self.conn.cursor()
-        cursor.execute(DROP_CLIENTS_QUERY)
-        cursor.execute(DROP_FILES_QUERY)
+        #cursor.execute(DROP_CLIENTS_QUERY)
+        #cursor.execute(DROP_FILES_QUERY)
         cursor.execute(CREATE_CLIENTS_QUERY)
         cursor.execute(CREATE_FILES_QUERY)
         self.conn.commit()
         cursor.close()
 
-        # ------------ FILES OPERATIONS ------------
+        # ------------ FILES INSERTIONS ------------
 
     def insert_into_files(self, client_id, file_name, path, verified=False) -> None:
-        print("Trying to insert into files...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -60,8 +62,10 @@ class Database:
         finally:
             cursor.close()  # Ensure the cursor is closed
 
+        # ------------ FILES UPDATES ------------
+        # Functions to update a given parameter based on client id + file name
+
     def update_file_verification(self, client_id, file_name, verified):
-        print("Trying to update file verification status...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -77,7 +81,6 @@ class Database:
             cursor.close()
 
     def get_files_by_client(self, client_id):
-        print("Trying to get files for client...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -102,12 +105,12 @@ class Database:
         finally:
             cursor.close()
 
-        # ------------- CLIENTS OPERATIONS ------------
+    # -------------- CLIENTS OPERATIONS ------------
 
-        # ------------- UPDATES ---------------
+    # -------------- UPDATES ---------------
+    # Functions to update a given parameter based on client id
 
     def update_public_key(self, client_id, public_key):
-        print("Trying to update public key...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -123,7 +126,6 @@ class Database:
             cursor.close()
 
     def update_last_seen(self, client_id, last_seen):
-        print("Trying to update last seen...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -132,14 +134,13 @@ class Database:
             WHERE id = ?
             ''', (last_seen, client_id))
             self.conn.commit()
-            print("Successfully updated client last seen.")
+            #print("Successfully updated client last seen.")
         except sqlite3.Error as e:
             print(f"Error occurred while updating client last seen: {e}")
         finally:
             cursor.close()
 
     def update_aes_key(self, client_id, aes_key):
-        print("Trying to update aes key...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -155,23 +156,15 @@ class Database:
             cursor.close()
 
     # ------------ GET FUNCTIONS -------------
+    # Functions to get a specific parameter from given client id. returns None client id if not found
 
-    # Get clients (for debugging purposes)
-    def get_clients(self):
-        print("trying to get all info from clients...")
-        cursor = self.conn.cursor()
-        rows = cursor.execute('''
-        select * from clients
-''')
-        return rows
-
+    # This is for debugging purposes used by the server console outputs
     def get_client_info(self, client_id):
-        print("Trying to get client info...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
-            SELECT * FROM clients WHERE id = ?
-            ''', (client_id,))
+              SELECT * FROM clients WHERE id = ?
+              ''', (client_id,))
             return cursor.fetchone()  # Return the entire row as a tuple
         except sqlite3.Error as e:
             print(f"Error occurred while fetching client info: {e}")
@@ -179,7 +172,6 @@ class Database:
             cursor.close()
 
     def get_client_name(self, client_id):
-        print("Trying to get client name...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''SELECT name FROM clients WHERE id = ?''', (client_id,))
@@ -191,7 +183,6 @@ class Database:
             cursor.close()
 
     def get_public_key(self, client_id):
-        print("Trying to get client public key...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''SELECT public_key FROM clients WHERE id = ?''', (client_id,))
@@ -203,7 +194,6 @@ class Database:
             cursor.close()
 
     def get_last_seen(self, client_id):
-        print("Trying to get client last seen...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''SELECT last_seen FROM clients WHERE id = ?''', (client_id,))
@@ -215,7 +205,6 @@ class Database:
             cursor.close()
 
     def get_aes_key(self, client_id):
-        print("Trying to get client aes key...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''SELECT aes_key FROM clients WHERE id = ?''', (client_id,))
@@ -228,7 +217,6 @@ class Database:
 
     # ----------- INSERT ---------
     def insert_into_clients(self, id, name, public_key=None, last_seen=None, aes_key=None) -> None:
-        print("Trying to insert into clients...")
         cursor = self.conn.cursor()
         try:
             cursor.execute('''
@@ -242,27 +230,6 @@ class Database:
         finally:
             cursor.close()  # Ensure the cursor is closed
 
-    def contains_name(self, name: str) -> bool:
-        cursor = self.conn.cursor()
-        try:
-            # Check if the client name exists in the clients table
-            cursor.execute('''
-                SELECT 1 FROM clients WHERE name = ?
-            ''', (name,))
-
-            # Fetch one result
-            result = cursor.fetchone()
-
-            # If a result is found, return True, otherwise False
-            if result:
-                return True
-            else:
-                return False
-        except sqlite3.Error as e:
-            print(f"Error occurred while checking for client name: {e}")
-            return False
-        finally:
-            cursor.close()
 
     def close_connection(self):
         # Close the database connection
