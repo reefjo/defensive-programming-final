@@ -21,12 +21,11 @@ def test_database():
     client_aes_key = b'someaeskey12345678901234567890'  # Example AES key as a bytes object
     another_aes_key = b'someaeskey12345678901234569999'
 
-    db.insert_into_clients(client_id, client_name, client_public_key, client_last_seen, client_aes_key)
-    clients = db.get_clients()
-    for row in clients:
-        print(row)
-    aes_key = db.get_aes_key(b'}\xfa\x1f\x93-\xd1H\x01\x89\x02o\x03\xaf\xca|\xfc')
-    print(aes_key)
+    #db.insert_into_clients(client_id, client_name, client_public_key, client_last_seen, client_aes_key)
+    rows = db.get
+
+
+
     # Close the database connection when done
     db.close_connection()
 
@@ -40,5 +39,5 @@ def main():
     server.run()
 
 if __name__ == '__main__':
-     main()
-     #test_database()
+     #main()
+     test_database()

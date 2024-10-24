@@ -1,7 +1,7 @@
 import os
 import socket
 import struct
-
+from pathlib import Path
 
 from cksum import memcrc
 from encryption import generate_aes_key, encrypt_aes_key, decrypt_aes_data
@@ -148,9 +148,14 @@ class RequestHandler:
         self.response.code = LOGIN_SUCCESS_CODE
 
     def handle_crc_codes(self):
-        # payload should be: client name (although we don't use it)
-        self.validate_payload_size(CLIENT_NAME_SIZE)
-        data = self.get_data(CLIENT_NAME_SIZE)  # fetch data from socket, don't use it
+        # payload should be: file name
+        self.validate_payload_size(FILE_NAME_SIZE)
+        file_name = self.get_data(FILE_NAME_SIZE)
+        if self.request_header.code == VALID_CRC_CODE:
+            # change file to valid inside database
+            file_name_stripped = self.strip_file_name(file_name)
+            self.db.update_file_verification(self.request_header.client_id, file_name_stripped, True)
+
 
         # send back acknowledgement code + client id
         self.response.payload = struct.pack('<%ds' % CLIENT_ID_SIZE, self.request_header.client_id)
@@ -207,7 +212,6 @@ class RequestHandler:
         file_data_len = self.request_header.payload_size - FILE_PAYLOAD_SIZE_WITHOUT_DATA
         structure_with_data = SEND_FILE_REQUEST_FORMAT + f"{file_data_len}s"
 
-
         content_size, orig_file_size, packet_number, total_packets, file_name, encrypted_data = struct.unpack(
             structure_with_data, data)
         print(f"Received {content_size = }, {orig_file_size = }, {packet_number = }")
@@ -215,14 +219,21 @@ class RequestHandler:
         print("Thank you for sending the file! trying to store it encrypted")
         print(f"The encrypted data length: {len(encrypted_data)}, should be {content_size}")
 
-        file_name_stripped = file_name.rstrip(b'\x00').decode('utf-8')
+
+        file_name_stripped = self.strip_file_name(file_name)
 
         client_folder_path = self.get_client_folder()
         file_path = os.path.join(client_folder_path, file_name_stripped)
 
+        # Check if the file path is safe
+        if not is_safe_file_path(file_path, client_folder_path):
+            raise Exception("Dangerous file path detected!")
+
         mode = "wb" if packet_number == 1 else "ab"
         with open(file_path, mode) as f:
             f.write(encrypted_data)
+        if packet_number == 1:  # Update database for the first packet
+            self.db.insert_into_files(self.request_header.client_id, file_name_stripped, file_path)
 
         if packet_number == total_packets:  # it was the last packet, decrypt it
             encrypted_file_data = ""
@@ -262,3 +273,23 @@ class RequestHandler:
         client_folder = os.path.join(str(CLIENT_FOLDERS_NAME), self.request_header.client_id.hex())
         return client_folder
 
+    def strip_file_name(self, file_name):
+        return file_name.rstrip(b'\x00').decode('utf-8')
+
+
+def is_safe_file_path(file_path: str, folder_path: str) -> bool:
+    # transform both paths to their absolute forms
+    resolved_file_path = Path(file_path).resolve()
+    resolved_folder_path = Path(folder_path).resolve()
+
+    # Check if the file path starts with the folder path
+    if not str(resolved_file_path).startswith(str(resolved_folder_path)):
+        return False  # Path traversal detected
+
+    # Check for dangerous characters in the file name
+    dangerous_characters = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
+    file_name = resolved_file_path.name
+    if any(char in dangerous_characters for char in file_name):
+        return False  # Dangerous characters found
+
+    return True  # Safe file path

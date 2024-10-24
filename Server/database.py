@@ -33,12 +33,11 @@ class Database:
         self.conn = sqlite3.connect(DATABASE_NAME)
         self.create_tables()
 
-
     def create_tables(self):
         # Create a cursor object to execute SQL commands
         cursor = self.conn.cursor()
-        #cursor.execute(DROP_CLIENTS_QUERY)
-        #cursor.execute(DROP_FILES_QUERY)
+        # cursor.execute(DROP_CLIENTS_QUERY)
+        # cursor.execute(DROP_FILES_QUERY)
         cursor.execute(CREATE_CLIENTS_QUERY)
         cursor.execute(CREATE_FILES_QUERY)
         self.conn.commit()
@@ -46,7 +45,7 @@ class Database:
 
         # ------------ FILES OPERATIONS ------------
 
-    def insert_into_files(self, client_id, file_name, path, verified = False) -> None:
+    def insert_into_files(self, client_id, file_name, path, verified=False) -> None:
         print("Trying to insert into files...")
         cursor = self.conn.cursor()
         try:
@@ -90,9 +89,23 @@ class Database:
         finally:
             cursor.close()
 
+    # For debugging purposes
+    def get_files(self):
+        cursor = self.conn.cursor()
+        try:
+            rows = cursor.execute('''
+        select * from files
+''')
+            return rows
+        except sqlite3.Error as e:
+            print(f"Error occurred while fetching files: {e}")
+        finally:
+            cursor.close()
+
         # ------------- CLIENTS OPERATIONS ------------
 
         # ------------- UPDATES ---------------
+
     def update_public_key(self, client_id, public_key):
         print("Trying to update public key...")
         cursor = self.conn.cursor()
@@ -142,13 +155,14 @@ class Database:
             cursor.close()
 
     # ------------ GET FUNCTIONS -------------
+
+    # Get clients (for debugging purposes)
     def get_clients(self):
         print("trying to get all info from clients...")
         cursor = self.conn.cursor()
-        rows = cursor.execute(GET_CLIENTS_QUERY)
-        #for row in rows:
-         #   print(row)
-        #print("ended printing all rows from clients")
+        rows = cursor.execute('''
+        select * from clients
+''')
         return rows
 
     def get_client_info(self, client_id):
@@ -213,7 +227,7 @@ class Database:
             cursor.close()
 
     # ----------- INSERT ---------
-    def insert_into_clients(self, id, name, public_key = None, last_seen = None, aes_key = None) -> None:
+    def insert_into_clients(self, id, name, public_key=None, last_seen=None, aes_key=None) -> None:
         print("Trying to insert into clients...")
         cursor = self.conn.cursor()
         try:
