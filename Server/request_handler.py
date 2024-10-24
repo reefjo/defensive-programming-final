@@ -85,6 +85,25 @@ class RequestHandler:
             f" client_version={self.request_header.client_version}, code={self.request_header.code},"
             f" payload_size={self.request_header.payload_size}")
 
+    def handle_register_request(self,) -> None:
+        print("Starting the handle register request function")
+        client_name = self.get_data(CLIENT_NAME_SIZE)
+
+        print(f"trying to register with {client_name = }")
+
+        #if self.db.contains_name(client_name):
+         #   print(f"Database already contains this {client_name = }.")
+        #  self.response.code = REGISTER_FAILED_CODE
+        if self.db.contains_name(client_name):
+            print("This client name is already in database... continuing anyways.")
+        client_id_bytes = uuid.uuid4().bytes
+        self.db.insert_into_clients(client_id_bytes,client_name, None, None, None)
+        print(f"Register successful! Created client id: {client_id_bytes}")
+        self.response.payload = client_id_bytes
+        self.response.code = REGISTER_SUCCESS_CODE
+
+
+
     def handle_login_request(self):
         # if client is in hash set of clients , accept. otherwise, send fail
         client_name = self.get_data(CLIENT_NAME_SIZE)
@@ -187,21 +206,6 @@ class RequestHandler:
                                                 self.request_header.client_id, len(encrypted_file_data), file_name, checksum)
             self.response.code = RECEIVED_FILE_SUCCESS_CODE
 
-
-    def handle_register_request(self,) -> None:
-        print("Starting the handle register request function")
-        client_name = self.get_data(CLIENT_NAME_SIZE)
-
-        print(f"trying to register with {client_name = }")
-
-        if self.db.contains_name(client_name):
-            print(f"Database already contains this {client_name = }.")
-            self.response.code = REGISTER_FAILED_CODE
-        else:
-            client_id_bytes = uuid.uuid4().bytes
-            print(f"Register successful! Created client id: {client_id_bytes}")
-            self.response.payload = client_id_bytes
-            self.response.code = REGISTER_SUCCESS_CODE
 
     def validate_payload_size(self, expected_size):
         if self.request_header.payload_size != expected_size:
