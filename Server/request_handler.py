@@ -1,5 +1,4 @@
 import os
-import socket
 import struct
 from pathlib import Path
 
@@ -9,9 +8,9 @@ from datetime import datetime
 
 from request import RequestHeader
 from protocol_constants import (
-    REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE, BUFFER_SIZE,
+    REGISTER_CODE, SEND_FILE_CODE, CLIENT_NAME_SIZE,
     REGISTER_SUCCESS_CODE, REGISTER_FAILED_CODE, SEND_KEY_CODE, SEND_KEY_REQUEST_FORMAT, SEND_KEY_PAYLOAD_SIZE,
-    AES_KEY_SIZE, KEY_SIZE, GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_FORMAT,
+    GENERAL_FAIL_CODE, RECEIVED_KEY_SUCCESS_CODE, SEND_FILE_REQUEST_FORMAT,
     FILE_PAYLOAD_SIZE_WITHOUT_DATA, RECEIVED_FILE_SUCCESS_CODE, INVALID_CRC_CODE, VALID_CRC_CODE,
     INVALID_CRC_FINAL_CODE, CLIENT_ID_SIZE, SERVER_ACK_CODE, FILE_NAME_SIZE, LOGIN_CODE, LOGIN_FAIL_CODE,
     LOGIN_SUCCESS_CODE, REQUEST_HEADER_SIZE, REQUEST_HEADER_FORMAT, CLIENT_FOLDERS_NAME,
@@ -63,7 +62,6 @@ class RequestHandler:
             raise e
 
         except Exception as e:
-            print(f"Error handling request: {str(e)}")
             self.response.code = GENERAL_FAIL_CODE
             self.response.payload = b''  # Clear payload in case of failure
             self.response.send_response(self.conn)
@@ -218,10 +216,6 @@ class RequestHandler:
             structure_with_data, data)
 
         print(f"Received {content_size = }, {orig_file_size = }, {packet_number = }, {total_packets = }")
-        #print(f"{total_packets = }, {file_name = },\n {encrypted_data = }")
-        #print("Thank you for sending the file! trying to store it encrypted")
-        #print(f"The encrypted data length: {len(encrypted_data)}, should be {content_size}")
-
 
         file_name_stripped = self.strip_file_name(file_name)
         client_folder_path = self.get_client_folder()
@@ -237,7 +231,7 @@ class RequestHandler:
         if packet_number == 1:  # Update database for the first packet
             self.db.insert_into_files(self.request_header.client_id, file_name_stripped, file_path)
 
-        if packet_number == total_packets:  # it was the last packet, decrypt it
+        if packet_number == total_packets:  # it was the last packet, decrypt the file
             encrypted_file_data = ""
             with open(file_path, 'rb') as f:
                 encrypted_file_data = f.read()
@@ -250,13 +244,11 @@ class RequestHandler:
                 f.write(decrypted_data)
 
             print(f"Successfully decrypted and wrote file: {file_name_stripped}")
-            print(f"{checksum = }")
 
             # Build the response payload with client ID, file size, and checksum
             self.response.payload = struct.pack('<%dsI%dsI' % (len(self.request_header.client_id), len(file_name)),
                                                 self.request_header.client_id, len(encrypted_file_data), file_name, checksum)
             self.response.code = RECEIVED_FILE_SUCCESS_CODE
-
 
     def validate_payload_size(self, expected_size):
         """

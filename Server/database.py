@@ -50,110 +50,75 @@ class Database:
 
     def insert_into_files(self, client_id, file_name, path, verified=False) -> None:
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                INSERT INTO files (client_id, name, path, verified)
-                VALUES (?, ?, ?, ?)
-            ''', (client_id, file_name, path, verified))
-            self.conn.commit()  # Commit the changes
-            print("Successfully inserted into files.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while inserting into files: {e}")
-        finally:
-            cursor.close()  # Ensure the cursor is closed
+        cursor.execute('''
+            INSERT OR REPLACE INTO files (client_id, name, path, verified)
+            VALUES (?, ?, ?, ?)
+        ''', (client_id, file_name, path, verified))
+        self.conn.commit()
+        cursor.close()
 
         # ------------ FILES UPDATES ------------
         # Functions to update a given parameter based on client id + file name
 
     def update_file_verification(self, client_id, file_name, verified):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                UPDATE files
-                SET verified = ?
-                WHERE client_id = ? AND name = ?
-            ''', (verified, client_id, file_name))
-            self.conn.commit()
-            print("Successfully updated file verification status.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while updating file verification status: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''
+            UPDATE files
+            SET verified = ?
+            WHERE client_id = ? AND name = ?
+        ''', (verified, client_id, file_name))
+        self.conn.commit()
+        cursor.close()
 
     def get_files_by_client(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                SELECT * FROM files WHERE client_id = ?
-            ''', (client_id,))
-            return cursor.fetchall()  # Return all files for the specified client
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching files for client: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''
+            SELECT * FROM files WHERE client_id = ?
+        ''', (client_id,))
+        return cursor.fetchall()
 
     # For debugging purposes
     def get_files(self):
         cursor = self.conn.cursor()
-        try:
-            rows = cursor.execute('''
-        select * from files
-''')
-            return rows
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching files: {e}")
-        finally:
-            cursor.close()
+        rows = cursor.execute('''
+            SELECT * FROM files
+        ''')
+        return rows
 
-    # -------------- CLIENTS OPERATIONS ------------
+    # -------------- CLIENTS ------------
 
     # -------------- UPDATES ---------------
     # Functions to update a given parameter based on client id
 
     def update_public_key(self, client_id, public_key):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
+        cursor.execute('''
             UPDATE clients
             SET public_key = ?
             WHERE id = ?
-            ''', (public_key, client_id))
-            self.conn.commit()
-            print("Successfully updated client public key.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while updating public key: {e}")
-        finally:
-            cursor.close()
+        ''', (public_key, client_id))
+        self.conn.commit()
+        cursor.close()
 
     def update_last_seen(self, client_id, last_seen):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
+        cursor.execute('''
             UPDATE clients
             SET last_seen = ?
             WHERE id = ?
-            ''', (last_seen, client_id))
-            self.conn.commit()
-            #print("Successfully updated client last seen.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while updating client last seen: {e}")
-        finally:
-            cursor.close()
+        ''', (last_seen, client_id))
+        self.conn.commit()
+        cursor.close()
 
     def update_aes_key(self, client_id, aes_key):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
+        cursor.execute('''
             UPDATE clients
             SET aes_key = ?
             WHERE id = ?
-            ''', (aes_key, client_id))
-            self.conn.commit()
-            print("Successfully updated client aes key.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while updating aes key: {e}")
-        finally:
-            cursor.close()
+        ''', (aes_key, client_id))
+        self.conn.commit()
+        cursor.close()
 
     # ------------ GET FUNCTIONS -------------
     # Functions to get a specific parameter from given client id. returns None client id if not found
@@ -161,74 +126,46 @@ class Database:
     # This is for debugging purposes used by the server console outputs
     def get_client_info(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-              SELECT * FROM clients WHERE id = ?
-              ''', (client_id,))
-            return cursor.fetchone()  # Return the entire row as a tuple
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching client info: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''
+            SELECT * FROM clients WHERE id = ?
+        ''', (client_id,))
+        return cursor.fetchone()
+
 
     def get_client_name(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''SELECT name FROM clients WHERE id = ?''', (client_id,))
-            result = cursor.fetchone()
-            return result[0] if result else None  # Return the name directly, or None if not found
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching client name: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''SELECT name FROM clients WHERE id = ?''', (client_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
 
     def get_public_key(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''SELECT public_key FROM clients WHERE id = ?''', (client_id,))
-            result = cursor.fetchone()
-            return result[0] if result else None  # Return the public key directly, or None if not found
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching client public key: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''SELECT public_key FROM clients WHERE id = ?''', (client_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+
 
     def get_last_seen(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''SELECT last_seen FROM clients WHERE id = ?''', (client_id,))
-            result = cursor.fetchone()
-            return result[0] if result else None  # Return the last seen time directly, or None if not found
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching client last seen: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''SELECT last_seen FROM clients WHERE id = ?''', (client_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
 
     def get_aes_key(self, client_id):
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''SELECT aes_key FROM clients WHERE id = ?''', (client_id,))
-            result = cursor.fetchone()
-            return result[0] if result else None  # Return the AES key directly, or None if not found
-        except sqlite3.Error as e:
-            print(f"Error occurred while fetching client aes key: {e}")
-        finally:
-            cursor.close()
+        cursor.execute('''SELECT aes_key FROM clients WHERE id = ?''', (client_id,))
+        result = cursor.fetchone()
+        return result[0] if result else None
 
     # ----------- INSERT ---------
     def insert_into_clients(self, id, name, public_key=None, last_seen=None, aes_key=None) -> None:
         cursor = self.conn.cursor()
-        try:
-            cursor.execute('''
-                INSERT INTO clients (id, name, public_key, last_seen, aes_key)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (id, name, public_key, last_seen, aes_key))
-            self.conn.commit()  # Commit the changes
-            print("Successfully inserted into clients.")
-        except sqlite3.Error as e:
-            print(f"Error occurred while inserting into clients: {e}")
-        finally:
-            cursor.close()  # Ensure the cursor is closed
+        cursor.execute('''
+            INSERT INTO clients (id, name, public_key, last_seen, aes_key)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (id, name, public_key, last_seen, aes_key))
+        self.conn.commit()
+        cursor.close()
 
 
     def close_connection(self):

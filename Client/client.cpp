@@ -71,7 +71,6 @@ void Client::load_stored_credentials() {
 		return;
 	}
 
-
 	// Read the rest of the file as the key
 	std::stringstream key_stream;
 	key_stream << file.rdbuf();  // read all remaining content
@@ -88,7 +87,7 @@ void Client::load_stored_credentials() {
 	if (!encoded_key.empty()) {
 		// Found a key, fetch it
 		try {
-			std::cout << "Found key in me.info, attempting to decode...\n";
+			std::cout << "Found RSA key in me.info\n";
 			this->private_rsa_key = Base64Wrapper::decode(encoded_key);
 		}
 		catch (const std::exception& e) {
@@ -154,9 +153,7 @@ std::string Client::generate_keys() {
 void Client::start() {
 	// send registeration request -> receive msg, send key, receive key, send file encrypted, receive OK
 	load_stored_credentials();
-	std::cout << "Client id after loading: " << this->client_id << std::endl;
 	if (not attempt_login()) {
-		std::cout << "Login failed, attempting to register...\n";
 		if (not attempt_register())
 			throw std::runtime_error("Failed to login and register. can't proceed\n");
 	}

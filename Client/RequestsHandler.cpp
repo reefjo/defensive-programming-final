@@ -21,6 +21,8 @@ RequestsHandler::RequestsHandler(std::string cid, std::string cname, uint8_t cve
 
 // Attempts to log in to the server and retrieve the encrypted AES key.
 std::optional<std::string> RequestsHandler::login_and_get_aes(std::string private_rsa_key) {
+	std::cout << "\nTrying to login...\n";
+
 	for (int i = 0; i < NUM_OF_TRIALS; i++) {
 		std::cout << "Trying to login for the " << i + 1 << " time\n";
 		send_authenticate_request(LOGIN_REQUEST_CODE);
@@ -70,12 +72,14 @@ std::optional<std::string>RequestsHandler::get_login_response() {
 // if registration fails - throws error 
 
 std::string RequestsHandler::register_and_get_id() {
+	std::cout << "\nTrying to register...\n";
+
 
 	for (uint8_t i = 0; i < NUM_OF_TRIALS; i++) {
 		send_authenticate_request(REGISTER_REQUEST_CODE);
 		std::optional<std::string> id = get_register_response_id();
 		if (id) {
-			std::cout << "Successfully received id from server " << std::endl;
+			std::cout << "Register success! received id from server " << std::endl;
 			return id.value();
 		}
 	}
@@ -122,6 +126,7 @@ void RequestsHandler::send_authenticate_request(uint16_t request_code) {
 
 // Handles the process of sending a file in chunks to the server, performs checksum validation in the end.
 void RequestsHandler::handle_send_file(std::string file_name, const std::string aes_key) {
+	std::cout << "\nStarting to handle send file...\n";
 
 	// Resize and pad the file name to a fixed size with null characters
 	file_name.resize(FILE_NAME_SIZE, '\0'); // Resize and fill with null characters
@@ -136,7 +141,7 @@ void RequestsHandler::handle_send_file(std::string file_name, const std::string 
 
 		// If the checksums match, send acknowledgment, get acknowledgment, and return
 		if (orig_file_checksum == server_checksum) {
-			std::cout << "Both client and server generated same checksum: " << server_checksum << " Yay!" << std::endl;
+			std::cout << "Success! Both client and server generated the same checksum " << std::endl;
 			send_ack_after_crc(file_name, VALID_CRC_REQUEST_CODE);  // send "valid crc" and return
 			get_ack_from_server();
 			return;
@@ -188,7 +193,7 @@ void RequestsHandler::send_ack_after_crc(const std::string file_name, uint16_t c
 
 	// Send the serialized acknowledgment to the server
 	boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
-	std::cout << "Sent code: " << code << " To server " << std::endl;
+	std::cout << "Sent ACK code: " << code << " To server " << std::endl;
 
 }
 
@@ -208,7 +213,7 @@ uint32_t RequestsHandler::get_send_file_response_crc() {
 
 	uint32_t checksum = get_uint32_from_vec(buf, buf.size() - CHECKSUM_SIZE);  // fetch checksum from the last 4 bytes using helper func
 	checksum = Endianness::from_little_to_native(checksum);
-	std::cout << "Checksum after converting to native :" << checksum << std::endl;
+
 	return checksum;
 }
 
@@ -225,7 +230,6 @@ void RequestsHandler::send_file(std::string file_name, const std::string aes_key
 	file.seekg(0, std::ios::end);
 	uint32_t orig_file_size = file.tellg();
 	file.seekg(0, std::ios::beg);
-	std::cout << "Original file size: " << orig_file_size << std::endl;
 
 	// Read the entire file into a buffer
 	std::vector<char> file_data(orig_file_size);
@@ -237,14 +241,11 @@ void RequestsHandler::send_file(std::string file_name, const std::string aes_key
 	AESWrapper aes(reinterpret_cast<const unsigned char*>(aes_key.c_str()), AESWrapper::DEFAULT_KEYLENGTH);
 	std::string encrypted_data = aes.encrypt(file_data.data(), file_data.size());
 
-
-
 	// Get the size of the encrypted file data
 	uint32_t encrypted_data_size = encrypted_data.size();
 	std::cout << "Encrypted file size : " << encrypted_data_size << std::endl;
 
 	// Determine how many packets are needed to send the file data
-	uint16_t current_packet = 0;
 	const uint16_t total_packets = (encrypted_data_size + BUFFER_SIZE - 1) / BUFFER_SIZE;
 
 	// Loop through the file and send it in chunks (packets)
@@ -267,7 +268,7 @@ void RequestsHandler::send_file(std::string file_name, const std::string aes_key
 		// Serialize the packet and send it over the network
 		std::vector<uint8_t> serialized_data = packet.serialize();
 		boost::asio::write(this->socket, boost::asio::buffer(serialized_data, serialized_data.size()));
-		std::cout << "Serialized  encrypted file data sent to server, total size: " << serialized_data.size() << std::endl;
+		std::cout << "Serialized encrypted file data sent to server, total packet size: " << serialized_data.size() << std::endl;
 	}
 }
 
@@ -305,6 +306,8 @@ std::string RequestsHandler::get_encrypted_aes(const std::string private_rsa_key
 
 // Sends the client's public RSA key to the server (The server uses this key to encrypt future communications)
 void RequestsHandler::send_public_key(const std::string public_key) {
+	std::cout << "\nTrying to send the public RSA key...\n";
+
 	// sends the public key given by the client
 
 	RSAPublicWrapper pub(public_key);

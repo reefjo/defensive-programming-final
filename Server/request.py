@@ -1,7 +1,3 @@
-import struct
-
-import socket
-
 
 class RequestHeader:
     def __init__(self):

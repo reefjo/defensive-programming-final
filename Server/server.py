@@ -60,4 +60,4 @@ class Server:
     def cleanup_connection(self, connection):
         self.selector.unregister(connection)
         connection.close()
-        print("Connection cleaned up")
+        print("Connection closed and cleaned up")

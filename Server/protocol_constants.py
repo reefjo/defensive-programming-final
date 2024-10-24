@@ -1,4 +1,3 @@
-# protocol_constants.py
 
 # Buffer and size constants
 BUFFER_SIZE = 1024

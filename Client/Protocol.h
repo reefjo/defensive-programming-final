@@ -20,7 +20,7 @@ constexpr uint16_t INVALID_CRC_FINAL_REQUEST_CODE = 902;  // invalid final : the
 
 constexpr uint8_t REGISTER_REQUEST_SIZE = 255;
 constexpr const char DEFAULT_ID[] = "aaaaaaaaaaaaaaaa";
-constexpr uint8_t NUM_OF_TRIALS = 3;
+constexpr uint8_t NUM_OF_TRIALS = 4;
 constexpr const char PRIVATE_KEY_FILE_NAME[] = "priv.key";
 constexpr const char ME_INFO_FILE_NAME[] = "me.info";
 constexpr const char TRANSFER_FILE_NAME[] = "transfer.info";
