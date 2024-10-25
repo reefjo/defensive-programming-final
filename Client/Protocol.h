@@ -24,8 +24,7 @@ constexpr uint8_t NUM_OF_TRIALS = 4;
 constexpr const char PRIVATE_KEY_FILE_NAME[] = "priv.key";
 constexpr const char ME_INFO_FILE_NAME[] = "me.info";
 constexpr const char TRANSFER_FILE_NAME[] = "transfer.info";
-constexpr const char TEST_FILE_NAME[] = "send_this.txt";
-constexpr const uint16_t BUFFER_SIZE = 1024;
+constexpr const uint16_t BUFFER_SIZE = 8192;
 
 
 

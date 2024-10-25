@@ -39,8 +39,6 @@ class Database:
     # Creates the 'clients' and 'files' tables in the database if they don't exist.
     def create_tables(self):
         cursor = self.conn.cursor()
-        #cursor.execute(DROP_CLIENTS_QUERY)
-        #cursor.execute(DROP_FILES_QUERY)
         cursor.execute(CREATE_CLIENTS_QUERY)
         cursor.execute(CREATE_FILES_QUERY)
         self.conn.commit()

@@ -31,10 +31,11 @@ class RequestHandler:
     def handle_request(self):
         try:
             self.parse_request_header()
+            '''
+            For debugging purposes, shows cilent info from database
             info = self.db.get_client_info(self.request_header.client_id)
             print(f"Client info: {info}")
-            # if an error has occurred, put general code fail
-
+            '''
             code = self.request_header.code
             if code == REGISTER_CODE:
                 self.handle_register_request()

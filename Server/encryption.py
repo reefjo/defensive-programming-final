@@ -20,14 +20,12 @@ def encrypt_aes_key(aes_key : bytes, public_key: bytes) -> bytes:
 
 def decrypt_aes_data(encrypted_data: bytes, aes_key: bytes) -> bytes:
     # Use zero IV to match C++ implementation
-    iv = bytes(16)  # should be a constant somewhere?
+    iv = bytes(16)
     cipher = AES.new(aes_key, AES.MODE_CBC, iv=iv)
 
     # Decrypt the data
-    print("Trying to decrypt the data, unpadding...")
-    print(f"Length of encrypted data from file: {len(encrypted_data)}")
+    print("Trying to decrypt the data...")
     decrypted_data = Padding.unpad(cipher.decrypt(encrypted_data), AES.block_size)
-    print(f"Successfully decrypted the data: {decrypted_data = }")
     return decrypted_data
 
 
